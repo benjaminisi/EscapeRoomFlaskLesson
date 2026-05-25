@@ -20,9 +20,27 @@ export interface PuzzleData {
   y: number;
 }
 
+export interface ItemData {
+  id: string;
+  name: string;
+  max_uses: number;
+  uses_left: number;
+  location_type: string;
+  owner_name: string | null;
+  x: number | null;
+  y: number | null;
+}
+
+export interface InventoryData {
+  hand: ItemData | null;
+  bag: ItemData[];
+}
+
 export interface GameStateResponse {
   player: PlayerData;
   puzzles: PuzzleData[];
+  grid_items: ItemData[];
+  inventory: InventoryData;
 }
 
 export interface MoveSuccessResponse {
@@ -138,6 +156,42 @@ export const api = {
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.error || 'Failed to fetch players');
+    }
+    return res.json();
+  },
+
+  async pickupItem(playerName: string, itemId: string): Promise<{ status: string; message: string; inventory: InventoryData }> {
+    const res = await fetch(`${API_BASE}/item/${encodeURIComponent(playerName)}/pickup/${encodeURIComponent(itemId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to pick up item');
+    }
+    return res.json();
+  },
+
+  async dropItem(playerName: string, itemId: string): Promise<{ status: string; message: string; inventory: InventoryData }> {
+    const res = await fetch(`${API_BASE}/item/${encodeURIComponent(playerName)}/drop/${encodeURIComponent(itemId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to drop item');
+    }
+    return res.json();
+  },
+
+  async equipItem(playerName: string, itemId: string): Promise<{ status: string; message: string; inventory: InventoryData }> {
+    const res = await fetch(`${API_BASE}/item/${encodeURIComponent(playerName)}/equip/${encodeURIComponent(itemId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to equip item');
     }
     return res.json();
   }

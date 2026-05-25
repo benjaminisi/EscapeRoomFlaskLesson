@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Avatar } from './AvatarSelector';
 import { PuzzleModal, PuzzleData } from './PuzzleModal';
-import { api } from '../services/api';
+import { api, ItemData, InventoryData } from '../services/api';
+import { InventoryPanel } from './InventoryPanel';
 
 interface GameGridProps {
   playerName: string;
@@ -23,11 +24,12 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
   const [moves, setMoves] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
   const [puzzles, setPuzzles] = useState<PuzzleData[]>([]);
+  const [gridItems, setGridItems] = useState<ItemData[]>([]);
+  const [inventory, setInventory] = useState<InventoryData | null>(null);
   const [activePuzzle, setActivePuzzle] = useState<PuzzleData | null>(null);
   const [gameCompleted, setGameCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Read-only reference of walls for frontend map rendering
   const [walls] = useState<Wall[]>([
     { x: 1, y: 0 },
     { x: 1, y: 1 },
@@ -36,51 +38,52 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
     { x: 1, y: 4 },
   ]);
 
-  // Add message to terminal log
   const addLog = useCallback((msg: string) => {
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     setLogs((prev) => [`[${timestamp}] ${msg}`, ...prev.slice(0, 14)]);
   }, []);
 
-  // Fetch current database session state on mount
+  const fetchGameState = useCallback(async () => {
+    try {
+      const state = await api.getGameState(playerName);
+      setPlayerPos({ x: state.player.x, y: state.player.y });
+      setMoves(state.player.steps_taken);
+      setPuzzles(state.puzzles || []);
+      setGridItems(state.grid_items || []);
+      setInventory(state.inventory || null);
+      
+      const solvedCount = (state.puzzles || []).filter(p => p.solved).length;
+      if (state.player.x === EXIT_POS.x && state.player.y === EXIT_POS.y && solvedCount === (state.puzzles || []).length) {
+        setGameCompleted(true);
+      }
+      return state;
+    } catch (err: any) {
+      addLog(`SYS_ERROR: Failed to establish database sync: ${err.message}`);
+      throw err;
+    }
+  }, [playerName, addLog, EXIT_POS.x, EXIT_POS.y]);
+
   useEffect(() => {
-    const loadState = async () => {
+    const init = async () => {
       try {
-        const state = await api.getGameState(playerName);
-        setPlayerPos({ x: state.player.x, y: state.player.y });
-        setMoves(state.player.steps_taken);
-        setPuzzles(state.puzzles);
-        
+        const state = await fetchGameState();
         addLog(`Operative '${playerName.toUpperCase()}' connected using chassis '${avatar.role}'.`);
         addLog(`Synchronized with coordinate database: player at (${state.player.x}, ${state.player.y}).`);
-        
-        const solvedCount = state.puzzles.filter(p => p.solved).length;
-        addLog(`Objective status: ${solvedCount}/${state.puzzles.length} firewall nodes bypassed.`);
-        
-        // Check if game is already completed
-        if (state.player.x === EXIT_POS.x && state.player.y === EXIT_POS.y && solvedCount === state.puzzles.length) {
-          setGameCompleted(true);
-        }
-      } catch (err: any) {
-        addLog(`SYS_ERROR: Failed to establish database sync: ${err.message}`);
       } finally {
         setLoading(false);
       }
     };
-    loadState();
-  }, [playerName, avatar, addLog]);
+    init();
+  }, [fetchGameState, playerName, avatar, addLog]);
 
-  // Check if position is a wall
   const isWall = (x: number, y: number) => {
     return walls.some((wall) => wall.x === x && wall.y === y);
   };
 
-  // Get puzzle at coordinate
   const getPuzzleAt = (x: number, y: number) => {
     return puzzles.find((p) => p.x === x && p.y === y);
   };
 
-  // Logic to move the player via backend query
   const movePlayer = useCallback(async (dx: number, dy: number) => {
     if (gameCompleted || activePuzzle || loading) return;
 
@@ -88,12 +91,9 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
       const response = await api.movePlayer(playerName, dx, dy);
       
       if (response.status === 'success') {
-        // Move succeeded, update coordinates and steps from backend
-        setPlayerPos({ x: response.player.x, y: response.player.y });
-        setMoves(response.player.steps_taken);
+        await fetchGameState();
         addLog(response.message);
 
-        // Check if operative reached exit
         if (response.player.x === EXIT_POS.x && response.player.y === EXIT_POS.y) {
           const allSolved = puzzles.every((p) => p.solved);
           if (allSolved) {
@@ -102,9 +102,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
           }
         }
       } else if (response.status === 'blocked') {
-        // Move was blocked by backend validation rules
         addLog(`COLLISION DETECTED: ${response.message}`);
-        
         if (response.reason === 'unsolved_puzzle' && response.puzzle) {
           setActivePuzzle(response.puzzle);
         }
@@ -112,9 +110,8 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
     } catch (err: any) {
       addLog(`SYS_ERROR: Terminal interface drop: ${err.message}`);
     }
-  }, [gameCompleted, activePuzzle, loading, playerName, puzzles, addLog, EXIT_POS.x, EXIT_POS.y]);
+  }, [gameCompleted, activePuzzle, loading, playerName, puzzles, addLog, EXIT_POS.x, EXIT_POS.y, fetchGameState]);
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
@@ -151,7 +148,6 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movePlayer]);
 
-  // Handle cell click
   const handleCellClick = (x: number, y: number) => {
     if (gameCompleted || loading) return;
 
@@ -174,26 +170,11 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
     }
   };
 
-  // Called when a puzzle is successfully solved in the modal
   const handleSolvePuzzle = async (puzzleId: string) => {
     try {
       const result = await api.solvePuzzle(puzzleId);
-      
-      // Update local puzzles state
-      setPuzzles((prev) =>
-        prev.map((p) => (p.id === puzzleId ? { ...p, solved: true } : p))
-      );
-      
       addLog(`OVERRIDE SECURED: ${result.message}`);
-      
-      // Re-evaluate game states
-      const nextPuzzles = puzzles.map((p) => (p.id === puzzleId ? { ...p, solved: true } : p));
-      const remaining = nextPuzzles.filter((p) => !p.solved).length;
-      if (remaining === 0) {
-        addLog(`ALERT: All firewall modules disabled. Chamber exit portal unlocked at (${EXIT_POS.x}, ${EXIT_POS.y}).`);
-      } else {
-        addLog(`ALERT: ${remaining} puzzle nodes remain online.`);
-      }
+      await fetchGameState();
     } catch (err: any) {
       addLog(`SYS_ERROR: Solve signature failed to commit: ${err.message}`);
     } finally {
@@ -201,23 +182,54 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
     }
   };
 
-  // Reset the database state
   const handleResetSimulation = async () => {
     setLoading(true);
     try {
       const state = await api.resetGame(playerName);
-      setPlayerPos({ x: state.player.x, y: state.player.y });
-      setMoves(state.player.steps_taken);
-      setPuzzles(state.puzzles);
+      addLog(`RE-INITIALIZED SIMULATION: ${state.message}`);
+      await fetchGameState();
       setGameCompleted(false);
       setActivePuzzle(null);
-      addLog(`RE-INITIALIZED SIMULATION: ${state.message}`);
     } catch (err: any) {
       addLog(`SYS_ERROR: Chamber reset failed: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
+
+  const handlePickup = async (itemId: string) => {
+    try {
+      const res = await api.pickupItem(playerName, itemId);
+      addLog(res.message);
+      await fetchGameState();
+    } catch (err: any) {
+      addLog(`ITEM ERROR: ${err.message}`);
+    }
+  };
+
+  const handleDrop = async (itemId: string) => {
+    try {
+      const res = await api.dropItem(playerName, itemId);
+      addLog(res.message);
+      await fetchGameState();
+    } catch (err: any) {
+      addLog(`ITEM ERROR: ${err.message}`);
+    }
+  };
+
+  const handleEquip = async (itemId: string) => {
+    try {
+      const res = await api.equipItem(playerName, itemId);
+      addLog(res.message);
+      await fetchGameState();
+    } catch (err: any) {
+      addLog(`ITEM ERROR: ${err.message}`);
+    }
+  };
+
+  const itemAtPlayerPos = gridItems.find(i => i.x === playerPos.x && i.y === playerPos.y);
+  
+  const hasFlashlight = inventory?.hand?.id === 'item_flash' || inventory?.bag.some(i => i.id === 'item_flash');
 
   return (
     <div className="game-container">
@@ -255,17 +267,27 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
                   const cellWall = isWall(x, y);
                   const puzzle = getPuzzleAt(x, y);
                   const isExit = EXIT_POS.x === x && EXIT_POS.y === y;
+                  const itemOnTile = gridItems.find(i => i.x === x && i.y === y);
                   const allSolved = puzzles.every(p => p.solved);
+                  
+                  const isDark = x >= 3 && !hasFlashlight;
 
                   let cellClass = '';
                   let cellStyle: React.CSSProperties = {};
 
-                  if (cellWall) cellClass = 'cell-wall';
+                  if (cellWall) cellClass += ' cell-wall';
                   if (puzzle) {
-                    cellClass = `cell-puzzle ${puzzle.solved ? 'solved' : 'locked'}`;
+                    cellClass += ` cell-puzzle ${puzzle.solved ? 'solved' : 'locked'}`;
                     if (!puzzle.solved) cellStyle.borderColor = '#ffaa00';
                   }
-                  if (isExit) cellClass = `cell-exit ${allSolved ? 'unlocked' : 'locked'}`;
+                  if (isExit) cellClass += ` cell-exit ${allSolved ? 'unlocked' : 'locked'}`;
+                  
+                  // Darkness overlay overrides
+                  if (isDark) {
+                    cellStyle.backgroundColor = '#0a0a0a';
+                    cellStyle.borderColor = '#111';
+                    cellStyle.boxShadow = 'none';
+                  }
 
                   return (
                     <div
@@ -273,23 +295,33 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
                       className={`grid-cell ${cellClass} ${isPlayer ? 'has-player' : ''}`}
                       style={cellStyle}
                       onClick={() => handleCellClick(x, y)}
-                      title={`Coordinate: (${x}, ${y})`}
+                      title={isDark ? "Too dark to see" : `Coordinate: (${x}, ${y})`}
                     >
+                      {/* Player */}
                       {isPlayer && (
                         <div className="player-indicator" style={{ backgroundColor: avatar.color, boxShadow: `0 0 15px ${avatar.color}` }}>
                           <svg viewBox="0 0 100 100" className="player-icon" dangerouslySetInnerHTML={{ __html: avatar.svgPath }} />
                         </div>
                       )}
                       
-                      {!isPlayer && puzzle && (
+                      {/* Puzzle Icon */}
+                      {!isPlayer && puzzle && !isDark && (
                         <div className="cell-overlay-icon font-orbitron" style={{ color: puzzle.solved ? '#00ff66' : '#ffaa00' }}>
                           {puzzle.solved ? '✓' : '🔒'}
                         </div>
                       )}
 
-                      {!isPlayer && isExit && (
+                      {/* Exit Icon */}
+                      {!isPlayer && isExit && !isDark && (
                         <div className="cell-overlay-icon font-orbitron exit-icon" style={{ color: allSolved ? '#00ff66' : '#ff0055' }}>
                           🚪
+                        </div>
+                      )}
+
+                      {/* Item Icon */}
+                      {!isPlayer && !cellWall && !puzzle && !isExit && itemOnTile && !isDark && (
+                        <div className="cell-overlay-icon font-orbitron" style={{ color: '#00ccff', fontSize: '1rem' }}>
+                          📦
                         </div>
                       )}
                     </div>
@@ -298,22 +330,43 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
               </div>
             ))}
           </div>
+
+          {/* Context Actions (Pick up) */}
+          {itemAtPlayerPos && (
+             <div className="mt-4 p-4 border border-blue-500 bg-blue-900/20 rounded text-center animate-scale-up">
+                <p className="text-blue-300 font-orbitron mb-2">Item detected: <strong>{itemAtPlayerPos.name}</strong></p>
+                <button 
+                  onClick={() => handlePickup(itemAtPlayerPos.id)}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold transition-colors"
+                >
+                  Pick Up
+                </button>
+             </div>
+          )}
+
+          {/* Inventory Panel */}
+          {inventory && (
+            <InventoryPanel 
+              inventory={inventory} 
+              onDrop={handleDrop} 
+              onEquip={handleEquip} 
+            />
+          )}
           
           {/* Navigation Helper Panel */}
-          <div className="navigation-controls glass-panel">
+          <div className="navigation-controls glass-panel mt-4">
             <h4 className="font-orbitron text-center" style={{ color: avatar.color, margin: '0 0 15px 0' }}>NAV_MANUAL</h4>
-            <div className="nav-info text-center font-inter">
-              <p>Move via keyboard using <strong>W A S D</strong> or <strong>Arrow Keys</strong>.</p>
-              <p>Alternatively, click adjacent cells directly on the screen.</p>
-            </div>
-            <div className="legend-grid font-inter">
+            <div className="legend-grid font-inter text-xs">
               <div className="legend-item"><span className="legend-dot dot-player" style={{ backgroundColor: avatar.color }} />Operative</div>
               <div className="legend-item"><span className="legend-dot dot-wall" />Titanium Obstacle</div>
               <div className="legend-item"><span className="legend-dot dot-puzzle-locked" />Active Firewall</div>
               <div className="legend-item"><span className="legend-dot dot-puzzle-solved" />Bypassed Node</div>
-              <div className="legend-item"><span className="legend-dot dot-exit-locked" />Exit Door (Locked)</div>
-              <div className="legend-item"><span className="legend-dot dot-exit-unlocked" />Exit Door (Unlocked)</div>
+              <div className="legend-item"><span className="legend-dot" style={{ backgroundColor: '#00ccff' }} />Physical Object</div>
+              <div className="legend-item"><span className="legend-dot dot-exit-locked" />Exit Door</div>
             </div>
+            {!hasFlashlight && (
+              <p className="text-red-400 mt-2 text-center text-xs">WARNING: Insufficient illumination in eastern sector.</p>
+            )}
           </div>
         </div>
 

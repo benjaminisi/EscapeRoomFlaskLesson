@@ -9,9 +9,18 @@ class GameService:
             return {'error': f'Operative {player_name} not registered'}, 404
             
         puzzles = PuzzleRepo.get_all()
+        
+        from app.repositories.item_repo import ItemRepo
+        from app.services.item_service import ItemService
+        
+        grid_items = [i for i in ItemRepo.get_all() if i['location_type'] == 'grid']
+        inventory = ItemService.get_inventory(player_name)
+        
         return {
             'player': player,
-            'puzzles': puzzles
+            'puzzles': puzzles,
+            'grid_items': grid_items,
+            'inventory': inventory
         }, 200
 
     @staticmethod
@@ -23,6 +32,8 @@ class GameService:
         try:
             PlayerRepo.reset_position(player_name)
             PuzzleRepo.reset_all()
+            from app.repositories.item_repo import ItemRepo
+            ItemRepo.reset_all()
             
             updated_player = PlayerRepo.get_by_name(player_name)
             puzzles = PuzzleRepo.get_all()
