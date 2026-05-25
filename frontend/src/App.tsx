@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AvatarSelector, Avatar } from './components/AvatarSelector';
 import { GameGrid } from './components/GameGrid';
+import AdminPanel from './components/AdminPanel';
 import { api } from './services/api';
 
 interface PlayerSession {
@@ -12,6 +13,7 @@ function App() {
   const [session, setSession] = useState<PlayerSession | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   const handleSelectOperative = async (name: string, chosenAvatar: Avatar) => {
     setLoading(true);
@@ -67,9 +69,22 @@ function App() {
         )}
       </main>
 
-      <footer className="app-footer font-mono">
-        SECURE CONNECTION // PROTOCOL v1.0.4 // ENCRYPTED NODE ACCESS
+      <footer className="app-footer font-mono flex justify-between items-center px-4">
+        <span>SECURE CONNECTION // PROTOCOL v1.0.4 // ENCRYPTED NODE ACCESS</span>
+        <button 
+          onClick={() => setShowAdmin(true)}
+          className="text-xs text-red-500/50 hover:text-red-400 transition-colors cursor-pointer"
+        >
+          [ADMIN]
+        </button>
       </footer>
+
+      {showAdmin && (
+        <AdminPanel 
+          onClose={() => setShowAdmin(false)} 
+          onRefresh={() => window.location.reload()} 
+        />
+      )}
     </div>
   );
 }

@@ -113,5 +113,32 @@ export const api = {
       throw new Error(err.error || 'Failed to reset simulation');
     }
     return res.json();
+  },
+
+  /**
+   * Admin: Initialize or force reset the database schema.
+   */
+  async initDatabase(force: boolean = false): Promise<{ status: string; message: string }> {
+    const res = await fetch(`${API_BASE}/admin/init-db?force=${force}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to initialize database');
+    }
+    return res.json();
+  },
+
+  /**
+   * Admin: Get all players.
+   */
+  async getPlayers(): Promise<{ status: string; players: PlayerData[] }> {
+    const res = await fetch(`${API_BASE}/admin/players`);
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to fetch players');
+    }
+    return res.json();
   }
 };
