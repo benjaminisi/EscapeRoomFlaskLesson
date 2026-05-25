@@ -194,5 +194,17 @@ export const api = {
       throw new Error(err.error || 'Failed to equip item');
     }
     return res.json();
+  },
+
+  async useItem(playerName: string, itemId: string): Promise<{ status: string; message: string; inventory: InventoryData }> {
+    const res = await fetch(`${API_BASE}/item/${encodeURIComponent(playerName)}/use/${encodeURIComponent(itemId)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to use item');
+    }
+    return res.json();
   }
 };

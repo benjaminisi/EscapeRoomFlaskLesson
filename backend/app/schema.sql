@@ -51,3 +51,8 @@ ON CONFLICT(id) DO NOTHING;
 INSERT INTO items (id, name, max_uses, uses_left, location_type, owner_name, x, y)
 VALUES ('item_wd40', 'WD-40', 1, 1, 'puzzle_reward', NULL, NULL, NULL)
 ON CONFLICT(id) DO NOTHING;
+
+-- Key is a puzzle reward
+INSERT INTO items (id, name, max_uses, uses_left, location_type, owner_name, x, y)
+VALUES ('item_key', 'Exit Key', 1, 1, 'puzzle_reward', NULL, NULL, NULL)
+ON CONFLICT(id) DO NOTHING;

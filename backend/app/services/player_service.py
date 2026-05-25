@@ -71,26 +71,25 @@ class PlayerService:
                     'message': 'Exit Door Locked: active firewall nodes detected.'
                 }, 200
 
-            from app.services.item_service import ItemService
             from app.repositories.item_repo import ItemRepo
-            inv = ItemService.get_inventory(name)
-            wd40_item = None
-            if inv['hand'] and inv['hand']['id'] == 'item_wd40':
-                wd40_item = inv['hand']
-            else:
-                for item in inv['bag']:
-                    if item['id'] == 'item_wd40':
-                        wd40_item = item
-                        break
-                        
-            if not wd40_item or wd40_item['uses_left'] <= 0:
+            wd40_item = ItemRepo.get_by_id('item_wd40')
+            key_item = ItemRepo.get_by_id('item_key')
+            
+            # If WD-40 hasn't been used yet (uses_left > 0), the door is still rusty
+            if wd40_item and wd40_item['uses_left'] > 0:
                 return {
                     'status': 'blocked',
                     'reason': 'exit_locked_rusty',
-                    'message': 'Exit Door is extremely rusty and stuck. You need some WD-40 to open it.'
+                    'message': 'Exit Door is extremely rusty and stuck. You need to manually use WD-40 on it.'
                 }, 200
-                
-            ItemRepo.use_item('item_wd40')
+
+            # If Key hasn't been used yet
+            if not key_item or key_item['uses_left'] > 0:
+                return {
+                    'status': 'blocked',
+                    'reason': 'exit_locked_key',
+                    'message': 'The rust is gone, but the door is locked. You need to use the Exit Key.'
+                }, 200
                 
         # Success: Commit coordinates and step count
         new_steps = player['steps_taken'] + 1

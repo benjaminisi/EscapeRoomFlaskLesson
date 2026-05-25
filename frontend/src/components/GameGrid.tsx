@@ -227,6 +227,16 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
     }
   };
 
+  const handleUse = async (itemId: string) => {
+    try {
+      const res = await api.useItem(playerName, itemId);
+      addLog(res.message);
+      await fetchGameState();
+    } catch (err: any) {
+      addLog(`ITEM ERROR: ${err.message}`);
+    }
+  };
+
   const itemAtPlayerPos = gridItems.find(i => i.x === playerPos.x && i.y === playerPos.y);
   
   const hasFlashlight = inventory?.hand?.id === 'item_flash' || inventory?.bag.some(i => i.id === 'item_flash');
@@ -250,9 +260,18 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
               {avatar.role}
             </span>
           </div>
-          <div className="moves-counter">
-            <span className="font-orbitron label">STEPS:</span>
-            <span className="font-inter val">{moves}</span>
+          <div className="moves-counter flex items-center gap-4">
+            <div>
+              <span className="font-orbitron label">STEPS:</span>
+              <span className="font-inter val">{moves}</span>
+            </div>
+            <button 
+              onClick={fetchGameState}
+              className="text-xs bg-blue-900/50 hover:bg-blue-800 text-blue-200 border border-blue-500 rounded px-2 py-1 transition-colors font-orbitron"
+              title="Pull latest state from database"
+            >
+              SYNC_STATE
+            </button>
           </div>
           <button className="btn-reset font-orbitron" onClick={onReset}>ABORT_MISSION</button>
         </div>
@@ -350,6 +369,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
               inventory={inventory} 
               onDrop={handleDrop} 
               onEquip={handleEquip} 
+              onUse={handleUse}
             />
           )}
           

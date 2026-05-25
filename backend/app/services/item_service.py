@@ -84,6 +84,59 @@ class ItemService:
         }, 200
 
     @staticmethod
+    def use_item(player_name, item_id):
+        player = PlayerRepo.get_by_name(player_name)
+        if not player:
+            return {'error': 'Player not found'}, 404
+
+        item = ItemRepo.get_by_id(item_id)
+        if not item or item['owner_name'] != player_name:
+            return {'error': 'You do not possess this item'}, 400
+
+        if item['uses_left'] == 0:
+            return {'error': 'This item has no uses left'}, 400
+
+        if item_id == 'item_wd40':
+            # Check proximity to exit (4, 4)
+            dx = abs(player['x'] - 4)
+            dy = abs(player['y'] - 4)
+            if dx + dy > 1 and not (player['x'] == 4 and player['y'] == 4):
+                return {'error': 'You must be next to the exit door at (4, 4) to use the WD-40'}, 400
+                
+            ItemRepo.use_item(item_id)
+            return {
+                'status': 'success',
+                'message': 'You sprayed WD-40 on the exit door hinges. The rust dissolved!',
+                'inventory': ItemService.get_inventory(player_name)
+            }, 200
+
+        if item_id == 'item_key':
+            wd40_item = ItemRepo.get_by_id('item_wd40')
+            if not wd40_item or wd40_item['uses_left'] > 0:
+                return {'error': 'The keyway is rusted shut! You must use WD-40 on the door first.'}, 400
+
+            dx = abs(player['x'] - 4)
+            dy = abs(player['y'] - 4)
+            if dx + dy > 1 and not (player['x'] == 4 and player['y'] == 4):
+                return {'error': 'You must be next to the exit door at (4, 4) to use the key'}, 400
+                
+            ItemRepo.use_item(item_id)
+            return {
+                'status': 'success',
+                'message': 'You turned the key. The exit door is unlocked!',
+                'inventory': ItemService.get_inventory(player_name)
+            }, 200
+
+        if item['uses_left'] > 0:
+            ItemRepo.use_item(item_id)
+            
+        return {
+            'status': 'success',
+            'message': f"Used {item['name']}.",
+            'inventory': ItemService.get_inventory(player_name)
+        }, 200
+
+    @staticmethod
     def grant_reward(player_name, item_id, x, y):
         item = ItemRepo.get_by_id(item_id)
         if not item or item['owner_name'] is not None:

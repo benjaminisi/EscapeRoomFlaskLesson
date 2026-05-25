@@ -5,9 +5,10 @@ interface InventoryPanelProps {
   inventory: InventoryData;
   onDrop: (itemId: string) => void;
   onEquip: (itemId: string) => void;
+  onUse: (itemId: string) => void;
 }
 
-export const InventoryPanel: React.FC<InventoryPanelProps> = ({ inventory, onDrop, onEquip }) => {
+export const InventoryPanel: React.FC<InventoryPanelProps> = ({ inventory, onDrop, onEquip, onUse }) => {
   return (
     <div className="glass-panel mt-4 p-4 text-sm" style={{ borderColor: '#00f0ff' }}>
       <h3 className="font-orbitron text-[#00f0ff] mb-2 font-bold tracking-wider">INVENTORY STATUS</h3>
@@ -18,13 +19,21 @@ export const InventoryPanel: React.FC<InventoryPanelProps> = ({ inventory, onDro
           <div className="text-gray-400 text-xs mb-1">EQUIPPED (HAND)</div>
           {inventory.hand ? (
             <div className="flex justify-between items-center">
-              <span className="font-bold text-white">{inventory.hand.name}</span>
-              <button 
-                onClick={() => onDrop(inventory.hand!.id)}
-                className="text-xs px-2 py-1 bg-red-900/50 text-red-200 hover:bg-red-900 rounded"
-              >
-                DROP
-              </button>
+              <span className="font-bold text-white flex-1">{inventory.hand.name}</span>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => onUse(inventory.hand!.id)}
+                  className="text-xs px-2 py-1 bg-green-900/50 text-green-200 hover:bg-green-900 rounded"
+                >
+                  USE
+                </button>
+                <button 
+                  onClick={() => onDrop(inventory.hand!.id)}
+                  className="text-xs px-2 py-1 bg-red-900/50 text-red-200 hover:bg-red-900 rounded"
+                >
+                  DROP
+                </button>
+              </div>
             </div>
           ) : (
             <div className="text-gray-500 italic">Empty</div>

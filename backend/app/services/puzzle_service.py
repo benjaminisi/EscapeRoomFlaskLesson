@@ -16,6 +16,9 @@ class PuzzleService:
             if puzzle_id == 'puz_1':
                 ItemService.grant_reward(player_name, 'item_wd40', updated_puzzle['x'], updated_puzzle['y'])
                 msg += " Reward granted: WD-40."
+            elif puzzle_id == 'puz_3':
+                ItemService.grant_reward(player_name, 'item_key', updated_puzzle['x'], updated_puzzle['y'])
+                msg += " Reward granted: Exit Key."
                 
             return {
                 'status': 'success',

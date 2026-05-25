@@ -52,4 +52,6 @@ class ItemRepo:
         db.execute("UPDATE items SET location_type = 'grid', owner_name = NULL, x = 0, y = 1, uses_left = -1 WHERE id = 'item_flash'")
         # Reset WD-40 to puzzle_reward
         db.execute("UPDATE items SET location_type = 'puzzle_reward', owner_name = NULL, x = NULL, y = NULL, uses_left = 1 WHERE id = 'item_wd40'")
+        # Reset Key to puzzle_reward
+        db.execute("UPDATE items SET location_type = 'puzzle_reward', owner_name = NULL, x = NULL, y = NULL, uses_left = 1 WHERE id = 'item_key'")
         db.commit()
