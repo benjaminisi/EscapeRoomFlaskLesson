@@ -66,19 +66,24 @@ git pull origin "$BRANCH" || true
 
 # 3. Check container status and sync dependencies
 CONTAINER_NAME="escaperoom-lab"
-if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-    echo -e "${CYAN}[3/4] Syncing dependencies in active container '${CONTAINER_NAME}'...${NC}"
+CONTAINER_CLI="docker"
+if command -v podman &>/dev/null && { ! command -v docker &>/dev/null || ( [ -f /usr/bin/docker ] && grep -q "podman" /usr/bin/docker 2>/dev/null ); }; then
+    CONTAINER_CLI="podman"
+fi
+
+if $CONTAINER_CLI ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    echo -e "${CYAN}[3/4] Syncing dependencies in active container '${CONTAINER_NAME}' via ${CONTAINER_CLI}...${NC}"
     
     # Sync backend dependencies in case requirements.txt changed
-    docker exec "$CONTAINER_NAME" pip install -r /app/backend/requirements.txt --quiet
+    $CONTAINER_CLI exec "$CONTAINER_NAME" pip install -r /app/backend/requirements.txt --quiet
     
     # Sync frontend dependencies in case package.json changed
-    docker exec "$CONTAINER_NAME" bash -c "cd /app/frontend && npm install --silent"
+    $CONTAINER_CLI exec "$CONTAINER_NAME" bash -c "cd /app/frontend && npm install --silent"
     
     # Optional Database Reset
     if [ "$RESET_DB" = true ]; then
         echo -e "${YELLOW}[4/4] Resetting SQLite database to clean initial state...${NC}"
-        docker exec "$CONTAINER_NAME" curl -s -X POST "http://localhost:5001/api/admin/init-db?force=true" > /dev/null
+        $CONTAINER_CLI exec "$CONTAINER_NAME" curl -s -X POST "http://localhost:5001/api/admin/init-db?force=true" > /dev/null
         echo -e "${GREEN}[DATABASE] Database successfully reset and seeded.${NC}"
     else
         echo -e "${CYAN}[4/4] Database preserved.${NC}"

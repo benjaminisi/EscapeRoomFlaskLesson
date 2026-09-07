@@ -21,7 +21,7 @@ We use **Alternative B: Monolithic Container with Live Bind-Mount & Hot-Reloadin
 
 - **Image & Compose**:
   - Defined in `Dockerfile` (Python 3.11 + Node.js 20 LTS).
-  - Orchestrated via `docker-compose.yml` (`container_name: escaperoom-lab`).
+  - Orchestrated via `docker-compose.yml` (`container_name: escaperoom-lab`), compatible with both `docker compose` and `podman-compose`.
   - Supervisor: `entrypoint.sh` runs both Flask API (port `5001`, debug auto-reload) and Vite dev server (port `3000`, host `0.0.0.0`, watch polling).
 - **Volume Mounts**:
   - Host directory is mounted into `/app` (`.:/app`).

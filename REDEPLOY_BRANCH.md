@@ -71,7 +71,11 @@ The script handles the following steps automatically:
 If a student's Python code has an error, Flask's console debugger will capture it.
 To see what went wrong:
 ```bash
+# Docker:
 docker compose logs -f
+
+# Podman:
+podman logs -f escaperoom-lab
 ```
 The error traceback will be clearly displayed in the logs.
 

@@ -6,15 +6,20 @@ Welcome! This guide walks you through setting up the **Cyber Escape Room** on yo
 
 ## 1. Prerequisites on the Linux Server
 
-Your Linux machine needs **Docker** and **Docker Compose**.
+Your Linux machine needs **Docker** (or **Podman**) and its Compose utility.
 
-### If Docker is already installed:
+### If Docker or Podman is already installed:
 Run this check in your terminal:
 ```bash
+# For Docker:
 docker --version
 docker compose version
+
+# For Podman:
+podman --version
+podman-compose --version
 ```
-If both commands print version numbers, you are ready for Section 2.
+If either toolset prints version numbers, you are ready for Section 2 (use `podman-compose` instead of `docker compose` if running Podman).
 
 ### If Docker is NOT installed yet:
 Run the official automated install script (Ubuntu/Debian):
@@ -80,18 +85,30 @@ sudo ufw allow 3000/tcp
 Start the Escape Room container with a single command:
 
 ```bash
+# Docker:
 docker compose up -d
+
+# Podman:
+podman-compose up -d
 ```
 
 ### Check That Everything is Running
 ```bash
+# Docker:
 docker compose ps
+
+# Podman:
+podman ps
 ```
 You should see `escaperoom-lab` listed with status `Up`.
 
 ### View Live Game Activity & Logs
 ```bash
+# Docker:
 docker compose logs -f
+
+# Podman:
+podman logs -f escaperoom-lab
 ```
 *(Press `Ctrl + C` anytime to exit the log viewer; the container continues running in the background).*
 
@@ -113,6 +130,10 @@ docker compose logs -f
 
 When class is finished:
 ```bash
+# Docker:
 docker compose down
+
+# Podman:
+podman-compose down
 ```
-All player progress is saved in `backend/escaperoom.db` and will be restored next time you run `docker compose up -d`.
+All player progress is saved in `backend/escaperoom.db` and will be restored next time you run `docker compose up -d` or `podman-compose up -d`.

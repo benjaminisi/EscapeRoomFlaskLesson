@@ -20,11 +20,16 @@ This document contains precise instructions for an AI agent (or automation engin
 
 ## 2. Setup & Execution Commands
 
-### Step 2.1: Verify Host Docker Prerequisites
-Ensure Docker engine and Docker Compose plugin are accessible:
+### Step 2.1: Verify Host Container Engine Prerequisites
+Ensure Docker engine or Podman and Compose tools are accessible:
 ```bash
+# When using Docker:
 docker --version
 docker compose version
+
+# When using Podman:
+podman --version
+podman-compose --version
 ```
 
 ### Step 2.2: Ensure Script Permissions
@@ -36,19 +41,32 @@ chmod +x entrypoint.sh deploy-branch.sh
 ### Step 2.3: Build the Monolithic Container
 Build the dual Python/Node image without using cached layers if dependencies were altered:
 ```bash
+# Docker:
 docker compose build
+
+# Podman:
+podman-compose build
 ```
 
 ### Step 2.4: Launch the Container
 Start the container in detached mode:
 ```bash
+# Docker:
 docker compose up -d
+
+# Podman:
+podman-compose up -d
 ```
 
 ### Step 2.5: Inspect Startup Logs
 Check container logs to verify both backend and frontend booted cleanly:
 ```bash
+# Docker:
 docker compose logs -f
+
+# Podman:
+podman logs -f escaperoom-lab
+# or: podman-compose logs
 ```
 Expected output signature:
 ```text
@@ -65,7 +83,11 @@ Execute the following verification sequence after starting or modifying the cont
 
 ### Test 1: Container Status
 ```bash
+# Docker:
 docker ps --filter "name=escaperoom-lab" --format "{{.ID}} - {{.Status}} - {{.Ports}}"
+
+# Podman:
+podman ps --filter "name=escaperoom-lab" --format "{{.ID}} - {{.Status}} - {{.Ports}}"
 ```
 
 ### Test 2: Direct Backend API Health
@@ -106,17 +128,26 @@ Kill the conflicting process or change host port mappings in `docker-compose.yml
 ### Issue: Node Modules Architecture Mismatch
 If the host has an existing `frontend/node_modules` compiled for macOS (Darwin ARM64) and it leaks into the Linux container:
 ```bash
-# Rebuild anonymous volume
+# Rebuild anonymous volume (Docker):
 docker compose down -v
 docker compose build --no-cache
 docker compose up -d
+
+# Rebuild anonymous volume (Podman):
+podman-compose down -v
+podman-compose build --no-cache
+podman-compose up -d
 ```
 
 ### Issue: Vite Dev Server HMR Not Detecting File Edits
-Ensure `frontend/vite.config.ts` includes `watch: { usePolling: true }`. On containerized Docker bind mounts, inotify events from the host OS may not propagate without polling.
+Ensure `frontend/vite.config.ts` includes `watch: { usePolling: true }`. On containerized Docker/Podman bind mounts, inotify events from the host OS may not propagate without polling.
 
 ### Issue: SQLite Database Lock or Corruption
 To force-recreate the database using the built-in admin endpoint:
 ```bash
+# Docker:
 docker exec escaperoom-lab curl -s -X POST "http://localhost:5001/api/admin/init-db?force=true"
+
+# Podman:
+podman exec escaperoom-lab curl -s -X POST "http://localhost:5001/api/admin/init-db?force=true"
 ```
