@@ -1,0 +1,18 @@
+services:
+  escaperoom:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: escaperoom-lab
+    ports:
+      - "3000:3000"
+      - "5001:5001"
+    volumes:
+      # Mount host repository into container for instant hot-reloading
+      - .:/app
+      # Preserve container-compiled node_modules
+      - /app/frontend/node_modules
+    environment:
+      - PYTHONUNBUFFERED=1
+      - FLASK_DEBUG=1
+    restart: unless-stopped
