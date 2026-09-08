@@ -39,12 +39,13 @@ CREATE TABLE IF NOT EXISTS items (
     location_type TEXT NOT NULL, -- 'grid', 'hand', 'bag', 'puzzle_reward'
     owner_name TEXT,             -- Null if on grid/reward, Player name if in hand/bag
     x INTEGER,                   -- Grid X if location_type = 'grid'
-    y INTEGER                    -- Grid Y if location_type = 'grid'
+    y INTEGER,                   -- Grid Y if location_type = 'grid'
+    activation_level INTEGER NOT NULL DEFAULT 0
 );
 
 -- Seed Data for default items
-INSERT INTO items (id, name, max_uses, uses_left, location_type, owner_name, x, y)
-VALUES ('item_flash', 'Flashlight', -1, -1, 'grid', NULL, 0, 1)
+INSERT INTO items (id, name, max_uses, uses_left, location_type, owner_name, x, y, activation_level)
+VALUES ('item_lantern', 'Lantern', -1, -1, 'grid', NULL, 0, 1, 0)
 ON CONFLICT(id) DO NOTHING;
 
 -- WD-40 is a puzzle reward, so it has no grid coordinates initially

@@ -481,6 +481,53 @@ body {
   font-size: 1.6rem;
 }
 
+/* Darkness & Fog of War */
+.cell-dark {
+  background: #05070a !important;
+  border-color: #0f172a !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
+
+.cell-dark:hover {
+  background: #080d14 !important;
+  border-color: #1e293b !important;
+}
+
+.other-player-indicator {
+  width: 70%;
+  height: 70%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.3s ease;
+  animation: scale-in-bounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.other-player-initial {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #000;
+  letter-spacing: -0.5px;
+}
+
+.co-player-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #ff0055;
+  color: #ffffff;
+  font-size: 0.55rem;
+  font-weight: bold;
+  padding: 1px 4px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 6px rgba(255, 0, 85, 0.6);
+  z-index: 5;
+}
+
 @keyframes scale-in-bounce {
   0% { transform: scale(0.3); opacity: 0; }
   70% { transform: scale(1.1); }

@@ -15,12 +15,16 @@ class GameService:
         
         grid_items = [i for i in ItemRepo.get_all() if i['location_type'] == 'grid']
         inventory = ItemService.get_inventory(player_name)
+        other_players = [p for p in PlayerRepo.get_all() if p['name'] != player_name]
+        lantern = ItemRepo.get_by_id('item_lantern') or ItemRepo.get_by_id('item_flash')
         
         return {
             'player': player,
+            'other_players': other_players,
             'puzzles': puzzles,
             'grid_items': grid_items,
-            'inventory': inventory
+            'inventory': inventory,
+            'lantern': lantern
         }, 200
 
     @staticmethod

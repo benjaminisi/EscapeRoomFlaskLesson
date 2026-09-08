@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Avatar } from './AvatarSelector';
 import { PuzzleModal, PuzzleData } from './PuzzleModal';
-import { api, ItemData, InventoryData } from '../services/api';
+import { api, ItemData, InventoryData, PlayerData } from '../services/api';
 import { InventoryPanel } from './InventoryPanel';
 
 interface GameGridProps {
@@ -26,6 +26,8 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
   const [puzzles, setPuzzles] = useState<PuzzleData[]>([]);
   const [gridItems, setGridItems] = useState<ItemData[]>([]);
   const [inventory, setInventory] = useState<InventoryData | null>(null);
+  const [otherPlayers, setOtherPlayers] = useState<PlayerData[]>([]);
+  const [lanternItem, setLanternItem] = useState<ItemData | null>(null);
   const [activePuzzle, setActivePuzzle] = useState<PuzzleData | null>(null);
   const [gameCompleted, setGameCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -51,6 +53,8 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
       setPuzzles(state.puzzles || []);
       setGridItems(state.grid_items || []);
       setInventory(state.inventory || null);
+      setOtherPlayers(state.other_players || []);
+      setLanternItem(state.lantern || null);
       
       const solvedCount = (state.puzzles || []).filter(p => p.solved).length;
       if (state.player.x === EXIT_POS.x && state.player.y === EXIT_POS.y && solvedCount === (state.puzzles || []).length) {
@@ -75,6 +79,52 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
     };
     init();
   }, [fetchGameState, playerName, avatar, addLog]);
+
+  // Polling to reflect other operatives' actions and shared lantern activation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!gameCompleted && !activePuzzle && !loading) {
+        fetchGameState().catch(() => {});
+      }
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [fetchGameState, gameCompleted, activePuzzle, loading]);
+
+  const isCellVisible = useCallback((x: number, y: number) => {
+    // 1. Current player's personal base field of vision:
+    // Horizontally, vertically, and diagonally adjacent cells plus current tile (Chebyshev radius 1)
+    const inBaseVision = Math.max(Math.abs(x - playerPos.x), Math.abs(y - playerPos.y)) <= 1;
+    if (inBaseVision) return true;
+
+    // 2. Active lantern illumination:
+    // When lantern activation_level > 0, it expands visual range by its activation level.
+    // For activation level 1, illumination radius is 1 + 1 = 2 around the lantern's coordinates.
+    // All players see the area illuminated by the lantern.
+    if (lanternItem && (lanternItem.activation_level ?? 0) > 0) {
+      const illuminationRadius = 1 + (lanternItem.activation_level ?? 0);
+      let lanternPos: { x: number; y: number } | null = null;
+
+      if (lanternItem.owner_name === playerName) {
+        lanternPos = playerPos;
+      } else if (lanternItem.owner_name) {
+        const owner = otherPlayers.find(p => p.name === lanternItem.owner_name);
+        if (owner) {
+          lanternPos = { x: owner.x, y: owner.y };
+        }
+      } else if (lanternItem.location_type === 'grid' && lanternItem.x !== null && lanternItem.y !== null) {
+        lanternPos = { x: lanternItem.x, y: lanternItem.y };
+      }
+
+      if (lanternPos) {
+        const dist = Math.max(Math.abs(x - lanternPos.x), Math.abs(y - lanternPos.y));
+        if (dist <= illuminationRadius) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }, [playerPos, lanternItem, playerName, otherPlayers]);
 
   const isWall = (x: number, y: number) => {
     return walls.some((wall) => wall.x === x && wall.y === y);
@@ -150,6 +200,11 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
 
   const handleCellClick = (x: number, y: number) => {
     if (gameCompleted || loading) return;
+
+    if (!isCellVisible(x, y)) {
+      addLog(`TARGET RANGE UNSEEN: Sector at (${x}, ${y}) is shrouded in darkness.`);
+      return;
+    }
 
     const dx = x - playerPos.x;
     const dy = y - playerPos.y;
@@ -239,7 +294,8 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
 
   const itemAtPlayerPos = gridItems.find(i => i.x === playerPos.x && i.y === playerPos.y);
   
-  const hasFlashlight = inventory?.hand?.id === 'item_flash' || inventory?.bag.some(i => i.id === 'item_flash');
+  const playerHoldsLantern = inventory?.hand?.id === 'item_lantern' || inventory?.hand?.id === 'item_flash' || inventory?.bag.some(i => i.id === 'item_lantern' || i.id === 'item_flash');
+  const isLanternActive = (lanternItem?.activation_level ?? 0) > 0;
 
   return (
     <div className="game-container">
@@ -289,23 +345,22 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
                   const itemOnTile = gridItems.find(i => i.x === x && i.y === y);
                   const allSolved = puzzles.every(p => p.solved);
                   
-                  const isDark = x >= 3 && !hasFlashlight;
+                  const isVisible = isCellVisible(x, y);
+                  const isDark = !isVisible;
+                  const otherPlayersOnTile = isVisible ? otherPlayers.filter(p => p.x === x && p.y === y) : [];
 
                   let cellClass = '';
                   let cellStyle: React.CSSProperties = {};
 
-                  if (cellWall) cellClass += ' cell-wall';
-                  if (puzzle) {
-                    cellClass += ` cell-puzzle ${puzzle.solved ? 'solved' : 'locked'}`;
-                    if (!puzzle.solved) cellStyle.borderColor = '#ffaa00';
-                  }
-                  if (isExit) cellClass += ` cell-exit ${allSolved ? 'unlocked' : 'locked'}`;
-                  
-                  // Darkness overlay overrides
                   if (isDark) {
-                    cellStyle.backgroundColor = '#0a0a0a';
-                    cellStyle.borderColor = '#111';
-                    cellStyle.boxShadow = 'none';
+                    cellClass += ' cell-dark';
+                  } else {
+                    if (cellWall) cellClass += ' cell-wall';
+                    if (puzzle) {
+                      cellClass += ` cell-puzzle ${puzzle.solved ? 'solved' : 'locked'}`;
+                      if (!puzzle.solved) cellStyle.borderColor = '#ffaa00';
+                    }
+                    if (isExit) cellClass += ` cell-exit ${allSolved ? 'unlocked' : 'locked'}`;
                   }
 
                   return (
@@ -314,33 +369,56 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
                       className={`grid-cell ${cellClass} ${isPlayer ? 'has-player' : ''}`}
                       style={cellStyle}
                       onClick={() => handleCellClick(x, y)}
-                      title={isDark ? "Too dark to see" : `Coordinate: (${x}, ${y})`}
+                      title={isDark ? "Sector obscured by darkness" : `Coordinate: (${x}, ${y})`}
                     >
-                      {/* Player */}
+                      {/* Player (Self) */}
                       {isPlayer && (
                         <div className="player-indicator" style={{ backgroundColor: avatar.color, boxShadow: `0 0 15px ${avatar.color}` }}>
                           <svg viewBox="0 0 100 100" className="player-icon" dangerouslySetInnerHTML={{ __html: avatar.svgPath }} />
+                          {otherPlayersOnTile.length > 0 && (
+                            <span className="co-player-badge font-orbitron" title={`Co-located: ${otherPlayersOnTile.map(p => p.name).join(', ')}`}>
+                              +{otherPlayersOnTile.length}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Other Operatives (in visible cells) */}
+                      {!isPlayer && isVisible && otherPlayersOnTile.length > 0 && (
+                        <div 
+                          className="player-indicator other-player-indicator" 
+                          style={{ backgroundColor: otherPlayersOnTile[0].color, boxShadow: `0 0 12px ${otherPlayersOnTile[0].color}` }}
+                          title={otherPlayersOnTile.map(p => `Operative ${p.name} (${p.role})`).join(' | ')}
+                        >
+                          <span className="text-[10px] font-orbitron font-bold text-black select-none">
+                            {otherPlayersOnTile[0].name.slice(0, 2).toUpperCase()}
+                          </span>
+                          {otherPlayersOnTile.length > 1 && (
+                            <span className="co-player-badge font-orbitron">
+                              +{otherPlayersOnTile.length - 1}
+                            </span>
+                          )}
                         </div>
                       )}
                       
                       {/* Puzzle Icon */}
-                      {!isPlayer && puzzle && !isDark && (
+                      {!isPlayer && otherPlayersOnTile.length === 0 && puzzle && isVisible && (
                         <div className="cell-overlay-icon font-orbitron" style={{ color: puzzle.solved ? '#00ff66' : '#ffaa00' }}>
                           {puzzle.solved ? '✓' : '🔒'}
                         </div>
                       )}
 
                       {/* Exit Icon */}
-                      {!isPlayer && isExit && !isDark && (
+                      {!isPlayer && otherPlayersOnTile.length === 0 && isExit && isVisible && (
                         <div className="cell-overlay-icon font-orbitron exit-icon" style={{ color: allSolved ? '#00ff66' : '#ff0055' }}>
                           🚪
                         </div>
                       )}
 
                       {/* Item Icon */}
-                      {!isPlayer && !cellWall && !puzzle && !isExit && itemOnTile && !isDark && (
-                        <div className="cell-overlay-icon font-orbitron" style={{ color: '#00ccff', fontSize: '1rem' }}>
-                          📦
+                      {!isPlayer && otherPlayersOnTile.length === 0 && !cellWall && !puzzle && !isExit && itemOnTile && isVisible && (
+                        <div className="cell-overlay-icon font-orbitron" style={{ color: '#00ccff', fontSize: '1.2rem' }} title={`Item: ${itemOnTile.name}`}>
+                          {(itemOnTile.id === 'item_lantern' || itemOnTile.id === 'item_flash') ? '🏮' : '📦'}
                         </div>
                       )}
                     </div>
@@ -353,10 +431,12 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
           {/* Context Actions (Pick up) */}
           {itemAtPlayerPos && (
              <div className="mt-4 p-4 border border-blue-500 bg-blue-900/20 rounded text-center animate-scale-up">
-                <p className="text-blue-300 font-orbitron mb-2">Item detected: <strong>{itemAtPlayerPos.name}</strong></p>
+                <p className="text-blue-300 font-orbitron mb-2">
+                  Item detected: <strong>{itemAtPlayerPos.name}</strong> {(itemAtPlayerPos.id === 'item_lantern' || itemAtPlayerPos.id === 'item_flash') ? '🏮' : ''}
+                </p>
                 <button 
                   onClick={() => handlePickup(itemAtPlayerPos.id)}
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold transition-colors"
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold transition-colors font-orbitron"
                 >
                   Pick Up
                 </button>
@@ -381,11 +461,18 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
               <div className="legend-item"><span className="legend-dot dot-wall" />Titanium Obstacle</div>
               <div className="legend-item"><span className="legend-dot dot-puzzle-locked" />Active Firewall</div>
               <div className="legend-item"><span className="legend-dot dot-puzzle-solved" />Bypassed Node</div>
-              <div className="legend-item"><span className="legend-dot" style={{ backgroundColor: '#00ccff' }} />Physical Object</div>
+              <div className="legend-item"><span className="legend-dot" style={{ backgroundColor: '#00ccff' }} />🏮 Lantern / Item</div>
               <div className="legend-item"><span className="legend-dot dot-exit-locked" />Exit Door</div>
+              <div className="legend-item"><span className="legend-dot" style={{ backgroundColor: '#07090e', border: '1px solid #333' }} />Obscured Sector</div>
             </div>
-            {!hasFlashlight && (
-              <p className="text-red-400 mt-2 text-center text-xs">WARNING: Insufficient illumination in eastern sector.</p>
+            {isLanternActive ? (
+              <p className="text-green-400 mt-2 text-center text-xs font-orbitron">
+                LANTERN ACTIVE: Illuminating radius {1 + (lanternItem?.activation_level ?? 0)} for all operatives.
+              </p>
+            ) : (
+              <p className="text-amber-400 mt-2 text-center text-xs font-orbitron">
+                LIMITED AMBIENT LIGHT: Field of vision restricted to adjacent coordinates. {playerHoldsLantern ? 'Activate equipped lantern to expand vision.' : 'Locate and activate the lantern to expand vision.'}
+              </p>
             )}
           </div>
         </div>

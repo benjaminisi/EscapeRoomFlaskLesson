@@ -29,6 +29,7 @@ export interface ItemData {
   owner_name: string | null;
   x: number | null;
   y: number | null;
+  activation_level?: number;
 }
 
 export interface InventoryData {
@@ -38,9 +39,11 @@ export interface InventoryData {
 
 export interface GameStateResponse {
   player: PlayerData;
+  other_players?: PlayerData[];
   puzzles: PuzzleData[];
   grid_items: ItemData[];
   inventory: InventoryData;
+  lantern?: ItemData | null;
 }
 
 export interface MoveSuccessResponse {

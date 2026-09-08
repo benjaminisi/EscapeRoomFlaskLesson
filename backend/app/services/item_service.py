@@ -53,6 +53,9 @@ class ItemService:
         if not item or item['owner_name'] != player_name:
             return {'error': 'You do not own this item'}, 400
 
+        if item_id in ('item_lantern', 'item_flash'):
+            ItemRepo.set_activation_level(item_id, 0)
+
         updated_item = ItemRepo.update_location(item_id, 'grid', None, player['x'], player['y'])
         
         return {
@@ -95,6 +98,20 @@ class ItemService:
 
         if item['uses_left'] == 0:
             return {'error': 'This item has no uses left'}, 400
+
+        if item_id in ('item_lantern', 'item_flash'):
+            current_level = item.get('activation_level', 0)
+            new_level = 0 if current_level > 0 else 1
+            ItemRepo.set_activation_level(item['id'], new_level)
+            if new_level > 0:
+                msg = f"{item['name']} activated. Illumination expanded by activation level {new_level} (radius {1 + new_level})."
+            else:
+                msg = f"{item['name']} deactivated. Field of vision reduced to adjacent cells."
+            return {
+                'status': 'success',
+                'message': msg,
+                'inventory': ItemService.get_inventory(player_name)
+            }, 200
 
         if item_id == 'item_wd40':
             # Check proximity to exit (4, 4)
