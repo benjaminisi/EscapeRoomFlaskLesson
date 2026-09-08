@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AvatarSelector, Avatar } from './components/AvatarSelector';
 import { GameGrid } from './components/GameGrid';
 import AdminPanel from './components/AdminPanel';
+import { DiagnosticBanner } from './components/DiagnosticBanner';
 import { api } from './services/api';
 
 interface PlayerSession {
@@ -85,6 +86,8 @@ function App() {
           onRefresh={() => window.location.reload()} 
         />
       )}
+
+      <DiagnosticBanner />
     </div>
   );
 }
