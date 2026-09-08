@@ -61,6 +61,33 @@ export interface MoveBlockedResponse {
 
 export type MoveResponse = MoveSuccessResponse | MoveBlockedResponse;
 
+async function parseJsonResponse<T>(res: Response, defaultErrorMessage: string): Promise<T> {
+  const contentType = res.headers.get('content-type') || '';
+  let body: any = null;
+
+  if (contentType.includes('application/json')) {
+    try {
+      body = await res.json();
+    } catch {
+      body = null;
+    }
+  } else {
+    try {
+      const text = await res.text();
+      body = text ? { error: text } : null;
+    } catch {
+      body = null;
+    }
+  }
+
+  if (!res.ok) {
+    const message = body?.error || body?.message || defaultErrorMessage || `Request failed with status ${res.status}`;
+    throw new Error(message);
+  }
+
+  return (body ?? {}) as T;
+}
+
 export const api = {
   /**
    * Register a new player or fetch existing details.
@@ -71,11 +98,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, role, color })
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to register operative');
-    }
-    return res.json();
+    return parseJsonResponse(res, 'Failed to register operative');
   },
 
   /**
@@ -83,11 +106,7 @@ export const api = {
    */
   async getGameState(playerName: string): Promise<GameStateResponse> {
     const res = await fetch(`${API_BASE}/game-state/${encodeURIComponent(playerName)}`);
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to fetch game state');
-    }
-    return res.json();
+    return parseJsonResponse(res, 'Failed to fetch game state');
   },
 
   /**
@@ -99,11 +118,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dx, dy })
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to register operative movement');
-    }
-    return res.json();
+    return parseJsonResponse(res, 'Failed to register operative movement');
   },
 
   /**
@@ -114,11 +129,7 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to solve puzzle');
-    }
-    return res.json();
+    return parseJsonResponse(res, 'Failed to solve puzzle');
   },
 
   /**
@@ -129,11 +140,7 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to reset simulation');
-    }
-    return res.json();
+    return parseJsonResponse(res, 'Failed to reset simulation');
   },
 
   /**
@@ -144,11 +151,7 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to initialize database');
-    }
-    return res.json();
+    return parseJsonResponse(res, 'Failed to initialize database');
   },
 
   /**
@@ -156,11 +159,7 @@ export const api = {
    */
   async getPlayers(): Promise<{ status: string; players: PlayerData[] }> {
     const res = await fetch(`${API_BASE}/admin/players`);
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to fetch players');
-    }
-    return res.json();
+    return parseJsonResponse(res, 'Failed to fetch players');
   },
 
   async pickupItem(playerName: string, itemId: string): Promise<{ status: string; message: string; inventory: InventoryData }> {
@@ -168,11 +167,7 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to pick up item');
-    }
-    return res.json();
+    return parseJsonResponse(res, 'Failed to pick up item');
   },
 
   async dropItem(playerName: string, itemId: string): Promise<{ status: string; message: string; inventory: InventoryData }> {
@@ -180,11 +175,7 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to drop item');
-    }
-    return res.json();
+    return parseJsonResponse(res, 'Failed to drop item');
   },
 
   async equipItem(playerName: string, itemId: string): Promise<{ status: string; message: string; inventory: InventoryData }> {
@@ -192,11 +183,7 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to equip item');
-    }
-    return res.json();
+    return parseJsonResponse(res, 'Failed to equip item');
   },
 
   async useItem(playerName: string, itemId: string): Promise<{ status: string; message: string; inventory: InventoryData }> {
@@ -204,10 +191,6 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to use item');
-    }
-    return res.json();
+    return parseJsonResponse(res, 'Failed to use item');
   }
 };
