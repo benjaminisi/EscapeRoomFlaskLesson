@@ -226,14 +226,27 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
   };
 
   const handleSolvePuzzle = async (puzzleId: string) => {
+    const targetPuzzle = activePuzzle;
+    setActivePuzzle(null);
     try {
-      const result = await api.solvePuzzle(puzzleId);
+      const result = await api.solvePuzzle(playerName, puzzleId);
       addLog(`OVERRIDE SECURED: ${result.message}`);
+
+      // If the solved puzzle was adjacent to the operative (e.g. stepping into it triggered the puzzle),
+      // auto-advance operative position into the newly unlocked sector
+      if (targetPuzzle && targetPuzzle.id === puzzleId) {
+        const dx = targetPuzzle.x - playerPos.x;
+        const dy = targetPuzzle.y - playerPos.y;
+        if (Math.abs(dx) + Math.abs(dy) === 1) {
+          const moveRes = await api.movePlayer(playerName, dx, dy);
+          if (moveRes.status === 'success') {
+            addLog(moveRes.message);
+          }
+        }
+      }
       await fetchGameState();
     } catch (err: any) {
       addLog(`SYS_ERROR: Solve signature failed to commit: ${err.message}`);
-    } finally {
-      setActivePuzzle(null);
     }
   };
 

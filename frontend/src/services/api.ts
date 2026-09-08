@@ -124,8 +124,8 @@ export const api = {
   /**
    * Decrypt puzzle node.
    */
-  async solvePuzzle(puzzleId: string): Promise<{ status: string; puzzle: PuzzleData; message: string }> {
-    const res = await fetch(`${API_BASE}/puzzle/${encodeURIComponent(puzzleId)}/solve`, {
+  async solvePuzzle(playerName: string, puzzleId: string): Promise<{ status: string; puzzle: PuzzleData; message: string }> {
+    const res = await fetch(`${API_BASE}/puzzle/${encodeURIComponent(playerName)}/${encodeURIComponent(puzzleId)}/solve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
