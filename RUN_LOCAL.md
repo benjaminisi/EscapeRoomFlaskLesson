@@ -39,6 +39,13 @@ The `./run-local.sh` script does all the heavy lifting automatically:
 5. **Dual Service Coordination**: Starts the Flask API in the background, waits for its health check (`/api/health`), and launches the Vite React dev server with Hot Module Replacement (HMR).
 6. **Graceful Cleanup**: Traps `Ctrl+C` / `SIGINT` to ensure no orphan processes are left running on ports `5001` or `3000`.
 
+### 💡 Note on SQLite Lifecycle (Why No Start/Stop Needed)
+Unlike client-server database engines such as MySQL or PostgreSQL, **SQLite is an in-process, serverless database**:
+- It does **not** run as a standalone background daemon or system service (there is no port or background process to start/stop).
+- The entire database is a single local file: `backend/escaperoom.db`.
+- **Connection Lifecycle**: Python's built-in `sqlite3` driver opens the file whenever Flask handles requests, and automatically closes all connections when Flask terminates on `Ctrl+C`.
+- **Database Reset**: Using `./run-local.sh --reset-db` triggers `AdminService.init_database(force=True)` to wipe and re-seed the tables inside the existing file.
+
 ---
 
 ## 👥 Classroom & LAN Multiplayer Gameplay
