@@ -10,6 +10,7 @@ class AdminService:
         
         try:
             if force:
+                db.execute("DROP TABLE IF EXISTS items")
                 db.execute("DROP TABLE IF EXISTS players")
                 db.execute("DROP TABLE IF EXISTS puzzles")
                 db.commit()

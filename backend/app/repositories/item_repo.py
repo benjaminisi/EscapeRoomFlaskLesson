@@ -46,12 +46,20 @@ class ItemRepo:
         return ItemRepo.get_by_id(item_id)
 
     @staticmethod
+    def set_activation_level(item_id, level):
+        db = get_db()
+        db.execute("UPDATE items SET activation_level = ? WHERE id = ?", (level, item_id))
+        db.commit()
+        return ItemRepo.get_by_id(item_id)
+
+    @staticmethod
     def reset_all():
         db = get_db()
-        # Reset flashlight to grid
-        db.execute("UPDATE items SET location_type = 'grid', owner_name = NULL, x = 0, y = 1, uses_left = -1 WHERE id = 'item_flash'")
+        # Reset lantern to grid
+        db.execute("UPDATE items SET location_type = 'grid', owner_name = NULL, x = 0, y = 1, uses_left = -1, activation_level = 0 WHERE id = 'item_lantern'")
+        db.execute("UPDATE items SET id = 'item_lantern', name = 'Lantern', location_type = 'grid', owner_name = NULL, x = 0, y = 1, uses_left = -1, activation_level = 0 WHERE id = 'item_flash'")
         # Reset WD-40 to puzzle_reward
-        db.execute("UPDATE items SET location_type = 'puzzle_reward', owner_name = NULL, x = NULL, y = NULL, uses_left = 1 WHERE id = 'item_wd40'")
+        db.execute("UPDATE items SET location_type = 'puzzle_reward', owner_name = NULL, x = NULL, y = NULL, uses_left = 1, activation_level = 0 WHERE id = 'item_wd40'")
         # Reset Key to puzzle_reward
-        db.execute("UPDATE items SET location_type = 'puzzle_reward', owner_name = NULL, x = NULL, y = NULL, uses_left = 1 WHERE id = 'item_key'")
+        db.execute("UPDATE items SET location_type = 'puzzle_reward', owner_name = NULL, x = NULL, y = NULL, uses_left = 1, activation_level = 0 WHERE id = 'item_key'")
         db.commit()

@@ -61,6 +61,15 @@ Whenever making architectural changes, agents **must maintain and keep synchroni
 ---
 
 ## 5. Agent Coding Rules
+- **Clarification & Low Confidence Protocol**: Whenever you have doubt or low confidence, or when the user's prompt is incomplete, inconsistent, or unclear, you **MUST ask the user for clarification** before making assumptions or proceeding with ambiguous changes.
 - **Do not split into multi-container setups** unless explicitly instructed by the user (the user chose the monolithic container for simplicity and instant dev hot-reloads).
 - **Never revert `API_BASE`** to an absolute `http://localhost:...` URL.
 - **Maintain backward compatibility** with the SQLite schema and seed endpoints (`schema.sql` and `AdminService.init_database`).
+- **Items & Field of Vision Architecture**:
+  - The term **"lantern"** (ID: `item_lantern`) replaces "flashlight". Do not use "flashlight" in any app code, database models, or documentation.
+  - The `items` table includes an integer column `activation_level` (default `0`).
+  - For the lantern: `activation_level = 0` means OFF. `activation_level = 1` means ON.
+  - Base field of vision for a player is restricted to horizontally, vertically, and diagonally adjacent cells (Chebyshev radius 1).
+  - An active lantern expands vision radius by its `activation_level` (radius = $1 + \text{activation\_level}$, so radius 2 when activation level is 1).
+  - All players on the network see any area illuminated by an active lantern.
+

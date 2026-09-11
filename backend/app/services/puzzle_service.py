@@ -13,12 +13,16 @@ class PuzzleService:
             msg = f"Puzzle Node '{updated_puzzle['name']}' bypass verified."
             
             # Check for rewards
-            if puzzle_id == 'puz_1':
-                ItemService.grant_reward(player_name, 'item_wd40', updated_puzzle['x'], updated_puzzle['y'])
-                msg += " Reward granted: WD-40."
-            elif puzzle_id == 'puz_3':
-                ItemService.grant_reward(player_name, 'item_key', updated_puzzle['x'], updated_puzzle['y'])
-                msg += " Reward granted: Exit Key."
+            reward_item_id = 'item_wd40' if puzzle_id == 'puz_1' else ('item_key' if puzzle_id == 'puz_3' else None)
+            if reward_item_id:
+                reward_name = 'WD-40' if reward_item_id == 'item_wd40' else 'Exit Key'
+                if player_name:
+                    ItemService.grant_reward(player_name, reward_item_id, updated_puzzle['x'], updated_puzzle['y'])
+                    msg += f" Reward granted: {reward_name}."
+                else:
+                    from app.repositories.item_repo import ItemRepo
+                    ItemRepo.update_location(reward_item_id, 'grid', None, updated_puzzle['x'], updated_puzzle['y'])
+                    msg += f" Reward dropped at node: {reward_name}."
                 
             return {
                 'status': 'success',
