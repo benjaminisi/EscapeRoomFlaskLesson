@@ -97,6 +97,8 @@ class ItemService:
             return {'error': 'You do not possess this item'}, 400
 
         if item['uses_left'] == 0:
+            if item_id in ('item_lantern', 'item_flash'):
+                return {'error': 'The lantern is broken and cannot be turned on.'}, 400
             return {'error': 'This item has no uses left'}, 400
 
         if item_id in ('item_lantern', 'item_flash'):
@@ -114,6 +116,17 @@ class ItemService:
             }, 200
 
         if item_id == 'item_wd40':
+            # Using the WD-40 when the lantern is on creates a fireball that damages the lantern
+            lamp_item = ItemRepo.get_by_id('item_lantern') or ItemRepo.get_by_id('item_flash')
+            # if lamp_item and lamp_item['owner_name'] == player_name and lamp_item['activation_level'] > 0:
+            if lamp_item and lamp_item['owner_name'] == player_name:
+                ItemRepo.set_uses(lamp_item['id'], 0)
+                ItemRepo.set_activation_level(lamp_item['id'], 0)
+                return {
+                    'status': 'blocked',
+                    'message': "The WD-40 hits the lantern and creates a fireball - lantern is broken.",
+                    'inventory': ItemService.get_inventory(player_name)
+                }, 200
             # Check proximity to exit (4, 4)
             dx = abs(player['x'] - 4)
             dy = abs(player['y'] - 4)

@@ -53,6 +53,14 @@ class ItemRepo:
         return ItemRepo.get_by_id(item_id)
 
     @staticmethod
+    def set_uses(item_id, uses):
+        db = get_db()
+        db.execute("UPDATE items SET uses_left = ? WHERE id = ?", (uses, item_id))
+        db.commit()
+        return ItemRepo.get_by_id(item_id)
+
+
+    @staticmethod
     def reset_all():
         db = get_db()
         # Reset lantern to grid
