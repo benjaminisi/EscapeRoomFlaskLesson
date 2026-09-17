@@ -12,3 +12,9 @@ def get_game_state(player_name):
 def reset_game(player_name):
     result, status_code = GameService.reset_game(player_name)
     return jsonify(result), status_code
+
+@game_bp.route('/reset', methods=['POST'])
+def reset_game_general():
+    result, status_code = GameService.reset_game()
+    return jsonify(result), status_code
+

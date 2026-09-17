@@ -40,6 +40,15 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
     { x: 1, y: 4 },
   ]);
 
+  const isPlayerNotFound = useCallback((err: unknown) => {
+    const errorObj = err as { status?: number; message?: string } | null;
+    return errorObj?.status === 404 || 
+      (typeof errorObj?.message === 'string' && (
+        errorObj.message.toLowerCase().includes('not registered') || 
+        errorObj.message.toLowerCase().includes('not found')
+      ));
+  }, []);
+
   const addLog = useCallback((msg: string) => {
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     setLogs((prev) => [`[${timestamp}] ${msg}`, ...prev.slice(0, 14)]);
@@ -62,17 +71,23 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
       }
       return state;
     } catch (err: any) {
+      if (isPlayerNotFound(err)) {
+        onReset();
+        return null;
+      }
       addLog(`SYS_ERROR: Failed to establish database sync: ${err.message}`);
       throw err;
     }
-  }, [playerName, addLog, EXIT_POS.x, EXIT_POS.y]);
+  }, [playerName, addLog, EXIT_POS.x, EXIT_POS.y, isPlayerNotFound, onReset]);
 
   useEffect(() => {
     const init = async () => {
       try {
         const state = await fetchGameState();
-        addLog(`Operative '${playerName.toUpperCase()}' connected using chassis '${avatar.role}'.`);
-        addLog(`Synchronized with coordinate database: player at (${state.player.x}, ${state.player.y}).`);
+        if (state) {
+          addLog(`Operative '${playerName.toUpperCase()}' connected using chassis '${avatar.role}'.`);
+          addLog(`Synchronized with coordinate database: player at (${state.player.x}, ${state.player.y}).`);
+        }
       } finally {
         setLoading(false);
       }
@@ -80,15 +95,19 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
     init();
   }, [fetchGameState, playerName, avatar, addLog]);
 
-  // Polling to reflect other operatives' actions and shared lantern activation
+  // Polling to reflect other operatives' actions, shared lantern activation, and game resets
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!gameCompleted && !activePuzzle && !loading) {
-        fetchGameState().catch(() => {});
+      if (!gameCompleted && !loading) {
+        fetchGameState().catch((err: unknown) => {
+          if (isPlayerNotFound(err)) {
+            onReset();
+          }
+        });
       }
     }, 2500);
     return () => clearInterval(interval);
-  }, [fetchGameState, gameCompleted, activePuzzle, loading]);
+  }, [fetchGameState, gameCompleted, loading, isPlayerNotFound, onReset]);
 
   const isCellVisible = useCallback((x: number, y: number) => {
     // 1. Current player's personal base field of vision:
@@ -158,9 +177,13 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
         }
       }
     } catch (err: any) {
+      if (isPlayerNotFound(err)) {
+        onReset();
+        return;
+      }
       addLog(`SYS_ERROR: Terminal interface drop: ${err.message}`);
     }
-  }, [gameCompleted, activePuzzle, loading, playerName, puzzles, addLog, EXIT_POS.x, EXIT_POS.y, fetchGameState]);
+  }, [gameCompleted, activePuzzle, loading, playerName, puzzles, addLog, EXIT_POS.x, EXIT_POS.y, fetchGameState, isPlayerNotFound, onReset]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -246,21 +269,28 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
       }
       await fetchGameState();
     } catch (err: any) {
+      if (isPlayerNotFound(err)) {
+        onReset();
+        return;
+      }
       addLog(`SYS_ERROR: Solve signature failed to commit: ${err.message}`);
     }
   };
 
-  const handleResetSimulation = async () => {
+  const handleResetGame = async () => {
+    if (!window.confirm('Reset the entire game? This will drop all database tables, restore original starting values, and kick all players back to the starting screen.')) {
+      return;
+    }
     setLoading(true);
     try {
-      const state = await api.resetGame(playerName);
-      addLog(`RE-INITIALIZED SIMULATION: ${state.message}`);
-      await fetchGameState();
-      setGameCompleted(false);
-      setActivePuzzle(null);
+      await api.resetGame(playerName);
+      onReset();
     } catch (err: any) {
+      if (isPlayerNotFound(err)) {
+        onReset();
+        return;
+      }
       addLog(`SYS_ERROR: Chamber reset failed: ${err.message}`);
-    } finally {
       setLoading(false);
     }
   };
@@ -271,6 +301,10 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
       addLog(res.message);
       await fetchGameState();
     } catch (err: any) {
+      if (isPlayerNotFound(err)) {
+        onReset();
+        return;
+      }
       addLog(`ITEM ERROR: ${err.message}`);
     }
   };
@@ -281,6 +315,10 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
       addLog(res.message);
       await fetchGameState();
     } catch (err: any) {
+      if (isPlayerNotFound(err)) {
+        onReset();
+        return;
+      }
       addLog(`ITEM ERROR: ${err.message}`);
     }
   };
@@ -342,7 +380,22 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
               SYNC_STATE
             </button>
           </div>
-          <button className="btn-reset font-orbitron" onClick={onReset}>ABORT_MISSION</button>
+          <div className="flex items-center gap-2">
+            <button 
+              className="btn-reset font-orbitron" 
+              onClick={handleResetGame}
+              title="Drop all tables and reset chamber data to original starting values"
+            >
+              RESET_GAME
+            </button>
+            <button 
+              className="text-xs text-gray-400 hover:text-gray-200 border border-gray-600 rounded px-2 py-1 transition-colors font-orbitron cursor-pointer" 
+              onClick={onReset}
+              title="Exit chamber back to avatar selection without wiping database"
+            >
+              ABORT_MISSION
+            </button>
+          </div>
         </div>
 
         <div className="game-grid-section">
@@ -496,11 +549,12 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
             SYSTEM_CONSOLE logs
             {!loading && (
               <button 
-                onClick={handleResetSimulation} 
+                onClick={handleResetGame} 
                 style={{ float: 'right', background: 'none', border: 'none', color: '#ffaa00', cursor: 'pointer', fontSize: '0.65rem', padding: '0', textDecoration: 'underline' }}
                 className="font-orbitron"
+                title="Drop all tables and reset chamber data to original starting values"
               >
-                RESET_SIMULATION
+                RESET_GAME
               </button>
             )}
           </div>
@@ -534,9 +588,9 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
             <button 
               className="btn-cyber font-orbitron" 
               style={{ borderColor: '#00ff66', boxShadow: '0 0 15px rgba(0,255,102,0.4)', color: '#fff' }} 
-              onClick={handleResetSimulation}
+              onClick={handleResetGame}
             >
-              RELOAD SIMULATION
+              RESET_GAME
             </button>
           </div>
         </div>

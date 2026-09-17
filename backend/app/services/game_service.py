@@ -28,25 +28,16 @@ class GameService:
         }, 200
 
     @staticmethod
-    def reset_game(player_name):
-        player = PlayerRepo.get_by_name(player_name)
-        if not player:
-            return {'error': f'Operative {player_name} not registered'}, 404
-            
+    def reset_game(player_name=None):
         try:
-            PlayerRepo.reset_position(player_name)
-            PuzzleRepo.reset_all()
-            from app.repositories.item_repo import ItemRepo
-            ItemRepo.reset_all()
-            
-            updated_player = PlayerRepo.get_by_name(player_name)
-            puzzles = PuzzleRepo.get_all()
-            
-            return {
-                'status': 'success',
-                'message': 'Chamber simulation environment reset successfully.',
-                'player': updated_player,
-                'puzzles': puzzles
-            }, 200
+            from app.services.admin_service import AdminService
+            result, status_code = AdminService.init_database(force=True)
+            if status_code == 200:
+                return {
+                    'status': 'success',
+                    'message': 'Chamber simulation environment reset successfully. All database tables dropped and reset to starting values.'
+                }, 200
+            return result, status_code
         except Exception as e:
             return {'error': f'Failed to reset simulation: {str(e)}'}, 500
+

@@ -10,6 +10,11 @@ class AdminService:
         
         try:
             if force:
+                cursor = db.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+                tables = [row[0] for row in cursor.fetchall()]
+                for table in tables:
+                    db.execute(f"DROP TABLE IF EXISTS {table}")
                 db.execute("DROP TABLE IF EXISTS items")
                 db.execute("DROP TABLE IF EXISTS players")
                 db.execute("DROP TABLE IF EXISTS puzzles")

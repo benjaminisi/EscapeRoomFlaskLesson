@@ -111,19 +111,25 @@ ${failure.diagnostic ? `Server Diagnostic:\n${failure.diagnostic}\n` : ''}Contex
   });
 }
 
-async function requestJson<T>(url: string, options: RequestInit = {}, defaultErrorMessage: string = 'Request failed'): Promise<T> {
+interface RequestJsonOptions extends RequestInit {
+  skipDiagnostic?: boolean;
+}
+
+async function requestJson<T>(url: string, options: RequestJsonOptions = {}, defaultErrorMessage: string = 'Request failed'): Promise<T> {
   const method = options.method || 'GET';
   let res: Response;
   try {
     res = await fetch(url, options);
   } catch (networkErr: any) {
     const message = networkErr.message || 'Network unreachable';
-    reportDiagnosticFailure({
-      url,
-      method,
-      status: 0,
-      message: `Connection dropped: ${message}`
-    });
+    if (!options.skipDiagnostic) {
+      reportDiagnosticFailure({
+        url,
+        method,
+        status: 0,
+        message: `Connection dropped: ${message}`
+      });
+    }
     throw networkErr;
   }
 
@@ -147,14 +153,19 @@ async function requestJson<T>(url: string, options: RequestInit = {}, defaultErr
 
   if (!res.ok) {
     const message = body?.error || body?.message || defaultErrorMessage || `Request failed with status ${res.status}`;
-    reportDiagnosticFailure({
-      url,
-      method,
-      status: res.status,
-      message,
-      diagnostic: body?.diagnostic
-    });
-    throw new Error(message);
+    const isPlayerUnregistered = res.status === 404 && typeof message === 'string' && (message.toLowerCase().includes('not registered') || message.toLowerCase().includes('not found'));
+    if (!options.skipDiagnostic && !isPlayerUnregistered) {
+      reportDiagnosticFailure({
+        url,
+        method,
+        status: res.status,
+        message,
+        diagnostic: body?.diagnostic
+      });
+    }
+    const err = new Error(message) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
   }
 
   return (body ?? {}) as T;
@@ -201,10 +212,13 @@ export const api = {
   },
 
   /**
-   * Reset chamber simulation.
+   * Reset chamber simulation. Drops all tables and restores initial starting state.
    */
-  async resetGame(playerName: string): Promise<{ status: string; player: PlayerData; puzzles: PuzzleData[]; message: string }> {
-    return requestJson(`${API_BASE}/game-state/${encodeURIComponent(playerName)}/reset`, {
+  async resetGame(playerName?: string): Promise<{ status: string; message: string; player?: PlayerData; puzzles?: PuzzleData[] }> {
+    const url = playerName
+      ? `${API_BASE}/game-state/${encodeURIComponent(playerName)}/reset`
+      : `${API_BASE}/game-state/reset`;
+    return requestJson(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     }, 'Failed to reset simulation');
