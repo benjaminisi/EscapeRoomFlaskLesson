@@ -15,6 +15,40 @@ interface Wall {
   y: number;
 }
 
+function shallowEqual<T>(objA: T, objB: T): boolean {
+  if (Object.is(objA, objB)) return true;
+  if (!objA || !objB || typeof objA !== 'object' || typeof objB !== 'object') return false;
+  const a = objA as Record<string, unknown>;
+  const b = objB as Record<string, unknown>;
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (let i = 0; i < keysA.length; i++) {
+    const key = keysA[i];
+    if (!Object.prototype.hasOwnProperty.call(b, key) || !Object.is(a[key], b[key])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function arrayShallowEqual<T>(arrA: T[] | null | undefined, arrB: T[] | null | undefined): boolean {
+  if (arrA === arrB) return true;
+  if (!arrA || !arrB || arrA.length !== arrB.length) return false;
+  for (let i = 0; i < arrA.length; i++) {
+    if (!shallowEqual(arrA[i], arrB[i])) return false;
+  }
+  return true;
+}
+
+function inventoryEqual(invA: InventoryData | null, invB: InventoryData | null): boolean {
+  if (invA === invB) return true;
+  if (!invA || !invB) return false;
+  if (!shallowEqual(invA.hand, invB.hand)) return false;
+  if (!arrayShallowEqual(invA.bag, invB.bag)) return false;
+  return true;
+}
+
 export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset }) => {
   const GRID_SIZE = 5;
   const START_POS = { x: 0, y: 0 };
@@ -31,6 +65,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
   const [activePuzzle, setActivePuzzle] = useState<PuzzleData | null>(null);
   const [gameCompleted, setGameCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
 
   const [walls] = useState<Wall[]>([
     { x: 1, y: 0 },
@@ -57,25 +92,26 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
   const fetchGameState = useCallback(async () => {
     try {
       const state = await api.getGameState(playerName);
-      setPlayerPos({ x: state.player.x, y: state.player.y });
-      setMoves(state.player.steps_taken);
-      setPuzzles(state.puzzles || []);
-      setGridItems(state.grid_items || []);
-      setInventory(state.inventory || null);
-      setOtherPlayers(state.other_players || []);
-      setLanternItem(state.lantern || null);
+      setPlayerPos(prev => (prev.x === state.player.x && prev.y === state.player.y ? prev : { x: state.player.x, y: state.player.y }));
+      setMoves(prev => (prev === state.player.steps_taken ? prev : state.player.steps_taken));
+      setPuzzles(prev => (arrayShallowEqual(prev, state.puzzles || []) ? prev : (state.puzzles || [])));
+      setGridItems(prev => (arrayShallowEqual(prev, state.grid_items || []) ? prev : (state.grid_items || [])));
+      setInventory(prev => (inventoryEqual(prev, state.inventory || null) ? prev : (state.inventory || null)));
+      setOtherPlayers(prev => (arrayShallowEqual(prev, state.other_players || []) ? prev : (state.other_players || [])));
+      setLanternItem(prev => (shallowEqual(prev, state.lantern || null) ? prev : (state.lantern || null)));
       
       const solvedCount = (state.puzzles || []).filter(p => p.solved).length;
       if (state.player.x === EXIT_POS.x && state.player.y === EXIT_POS.y && solvedCount === (state.puzzles || []).length) {
         setGameCompleted(true);
       }
       return state;
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (isPlayerNotFound(err)) {
         onReset();
         return null;
       }
-      addLog(`SYS_ERROR: Failed to establish database sync: ${err.message}`);
+      const message = (err as Error)?.message || String(err);
+      addLog(`SYS_ERROR: Failed to establish database sync: ${message}`);
       throw err;
     }
   }, [playerName, addLog, EXIT_POS.x, EXIT_POS.y, isPlayerNotFound, onReset]);
@@ -109,16 +145,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
     return () => clearInterval(interval);
   }, [fetchGameState, gameCompleted, loading, isPlayerNotFound, onReset]);
 
-  const isCellVisible = useCallback((x: number, y: number) => {
-    // 1. Current player's personal base field of vision:
-    // Horizontally, vertically, and diagonally adjacent cells plus current tile (Chebyshev radius 1)
-    const inBaseVision = Math.max(Math.abs(x - playerPos.x), Math.abs(y - playerPos.y)) <= 1;
-    if (inBaseVision) return true;
-
-    // 2. Active lantern illumination:
-    // When lantern activation_level > 0, it expands visual range by its activation level.
-    // For activation level 1, illumination radius is 1 + 1 = 2 around the lantern's coordinates.
-    // All players see the area illuminated by the lantern.
+  const isCellInLanternLight = useCallback((x: number, y: number) => {
     if (lanternItem && (lanternItem.activation_level ?? 0) > 0) {
       const illuminationRadius = 1 + (lanternItem.activation_level ?? 0);
       let lanternPos: { x: number; y: number } | null = null;
@@ -144,6 +171,14 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
 
     return false;
   }, [playerPos, lanternItem, playerName, otherPlayers]);
+
+  const isCellInBaseVision = useCallback((x: number, y: number) => {
+    return Math.max(Math.abs(x - playerPos.x), Math.abs(y - playerPos.y)) <= 1;
+  }, [playerPos]);
+
+  const isCellVisible = useCallback((x: number, y: number) => {
+    return isCellInBaseVision(x, y) || isCellInLanternLight(x, y);
+  }, [isCellInBaseVision, isCellInLanternLight]);
 
   const isWall = (x: number, y: number) => {
     return walls.some((wall) => wall.x === x && wall.y === y);
@@ -295,6 +330,15 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
     }
   };
 
+  const handleManualSync = async () => {
+    setIsManualSyncing(true);
+    try {
+      await fetchGameState();
+    } finally {
+      setTimeout(() => setIsManualSyncing(false), 250);
+    }
+  };
+
   const handlePickup = async (itemId: string) => {
     try {
       const res = await api.pickupItem(playerName, itemId);
@@ -373,11 +417,12 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
               <span className="font-inter val">{moves}</span>
             </div>
             <button 
-              onClick={fetchGameState}
-              className="text-xs bg-blue-900/50 hover:bg-blue-800 text-blue-200 border border-blue-500 rounded px-2 py-1 transition-colors font-orbitron"
+              onClick={handleManualSync}
+              disabled={isManualSyncing}
+              className="text-xs bg-blue-900/50 hover:bg-blue-800 text-blue-200 border border-blue-500 rounded px-2 py-1 transition-colors font-orbitron disabled:opacity-60"
               title="Pull latest state from database"
             >
-              SYNC_STATE
+              {isManualSyncing ? 'SYNCING...' : 'SYNC_STATE'}
             </button>
           </div>
           <div className="flex items-center gap-2">
@@ -411,35 +456,41 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
                   const itemOnTile = gridItems.find(i => i.x === x && i.y === y);
                   const allSolved = puzzles.every(p => p.solved);
                   
-                  const isVisible = isCellVisible(x, y);
+                  const inBaseVision = isCellInBaseVision(x, y);
+                  const isLanternLit = isCellInLanternLight(x, y);
+                  const isVisible = inBaseVision || isLanternLit;
                   const isDark = !isVisible;
                   const otherPlayersOnTile = isVisible ? otherPlayers.filter(p => p.x === x && p.y === y) : [];
 
                   let cellClass = '';
-                  let cellStyle: React.CSSProperties = {};
 
                   if (isDark) {
                     cellClass += ' cell-dark';
                   } else {
+                    if (isLanternLit) cellClass += ' cell-lantern-lit';
                     if (cellWall) cellClass += ' cell-wall';
                     if (puzzle) {
                       cellClass += ` cell-puzzle ${puzzle.solved ? 'solved' : 'locked'}`;
-                      if (!puzzle.solved) cellStyle.borderColor = '#ffaa00';
                     }
                     if (isExit) cellClass += ` cell-exit ${allSolved ? 'unlocked' : 'locked'}`;
                   }
+
+                  const cellTitle = isDark
+                    ? "Sector obscured by darkness"
+                    : isLanternLit
+                      ? `Coordinate: (${x}, ${y}) [Lantern Light]`
+                      : `Coordinate: (${x}, ${y}) [Operative Field of Vision]`;
 
                   return (
                     <div
                       key={x}
                       className={`grid-cell ${cellClass} ${isPlayer ? 'has-player' : ''}`}
-                      style={cellStyle}
                       onClick={() => handleCellClick(x, y)}
-                      title={isDark ? "Sector obscured by darkness" : `Coordinate: (${x}, ${y})`}
+                      title={cellTitle}
                     >
                       {/* Player (Self) */}
                       {isPlayer && (
-                        <div className="player-indicator" style={{ backgroundColor: avatar.color, boxShadow: `0 0 15px ${avatar.color}` }}>
+                        <div key="self-player" className="player-indicator" style={{ backgroundColor: avatar.color, boxShadow: `0 0 15px ${avatar.color}` }}>
                           <svg viewBox="0 0 100 100" className="player-icon" dangerouslySetInnerHTML={{ __html: avatar.svgPath }} />
                           {otherPlayersOnTile.length > 0 && (
                             <span className="co-player-badge font-orbitron" title={`Co-located: ${otherPlayersOnTile.map(p => p.name).join(', ')}`}>
@@ -452,6 +503,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
                       {/* Other Operatives (in visible cells) */}
                       {!isPlayer && isVisible && otherPlayersOnTile.length > 0 && (
                         <div 
+                          key="other-players"
                           className="player-indicator other-player-indicator" 
                           style={{ backgroundColor: otherPlayersOnTile[0].color, boxShadow: `0 0 12px ${otherPlayersOnTile[0].color}` }}
                           title={otherPlayersOnTile.map(p => `Operative ${p.name} (${p.role})`).join(' | ')}
@@ -469,21 +521,21 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
                       
                       {/* Puzzle Icon */}
                       {!isPlayer && otherPlayersOnTile.length === 0 && puzzle && isVisible && (
-                        <div className="cell-overlay-icon font-orbitron" style={{ color: puzzle.solved ? '#00ff66' : '#ffaa00' }}>
+                        <div key="puzzle-icon" className="cell-overlay-icon font-orbitron" style={{ color: puzzle.solved ? '#00ff66' : '#ffaa00' }}>
                           {puzzle.solved ? '✓' : '🔒'}
                         </div>
                       )}
 
                       {/* Exit Icon */}
                       {!isPlayer && otherPlayersOnTile.length === 0 && isExit && isVisible && (
-                        <div className="cell-overlay-icon font-orbitron exit-icon" style={{ color: allSolved ? '#00ff66' : '#ff0055' }}>
+                        <div key="exit-icon" className="cell-overlay-icon font-orbitron exit-icon" style={{ color: allSolved ? '#00ff66' : '#ff0055' }}>
                           🚪
                         </div>
                       )}
 
                       {/* Item Icon */}
                       {!isPlayer && otherPlayersOnTile.length === 0 && !cellWall && !puzzle && !isExit && itemOnTile && isVisible && (
-                        <div className="cell-overlay-icon font-orbitron" style={{ color: '#00ccff', fontSize: '1.2rem' }} title={`Item: ${itemOnTile.name}`}>
+                        <div key="item-icon" className="cell-overlay-icon font-orbitron" style={{ color: '#00ccff', fontSize: '1.2rem' }} title={`Item: ${itemOnTile.name}`}>
                           {(itemOnTile.id === 'item_lantern' || itemOnTile.id === 'item_flash') ? '🏮' : '📦'}
                         </div>
                       )}
@@ -496,7 +548,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
 
           {/* Context Actions (Pick up) */}
           {itemAtPlayerPos && (
-             <div className="mt-4 p-4 border border-blue-500 bg-blue-900/20 rounded text-center animate-scale-up">
+             <div className="mt-4 p-4 border border-blue-500 bg-blue-900/20 rounded text-center">
                 <p className="text-blue-300 font-orbitron mb-2">
                   Item detected: <strong>{itemAtPlayerPos.name}</strong> {(itemAtPlayerPos.id === 'item_lantern' || itemAtPlayerPos.id === 'item_flash') ? '🏮' : ''}
                 </p>
@@ -528,6 +580,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
               <div className="legend-item"><span className="legend-dot dot-puzzle-locked" />Active Firewall</div>
               <div className="legend-item"><span className="legend-dot dot-puzzle-solved" />Bypassed Node</div>
               <div className="legend-item"><span className="legend-dot" style={{ backgroundColor: '#00ccff' }} />🏮 Lantern / Item</div>
+              <div className="legend-item"><span className="legend-dot dot-lantern-lit" />Lantern Light</div>
               <div className="legend-item"><span className="legend-dot dot-exit-locked" />Exit Door</div>
               <div className="legend-item"><span className="legend-dot" style={{ backgroundColor: '#07090e', border: '1px solid #333' }} />Obscured Sector</div>
             </div>

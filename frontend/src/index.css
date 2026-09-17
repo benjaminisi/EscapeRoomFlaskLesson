@@ -391,7 +391,7 @@ body {
   justify-content: center;
   cursor: pointer;
   position: relative;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .grid-cell:hover:not(.cell-wall) {
@@ -418,7 +418,7 @@ body {
 }
 
 .cell-puzzle.locked {
-  border-color: rgba(255, 170, 0, 0.3);
+  border-color: #ffaa00;
   animation: pulse-border-orange 2s infinite alternate;
 }
 
@@ -464,7 +464,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: scale-in-bounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .player-icon {
@@ -494,6 +494,50 @@ body {
   border-color: #1e293b !important;
 }
 
+/* Lantern Illumination (Dark, underground, dim yellow) */
+.cell-lantern-lit {
+  background: rgba(180, 120, 10, 0.15) !important;
+  border-color: rgba(217, 140, 15, 0.35) !important;
+  box-shadow: inset 0 0 14px rgba(217, 119, 6, 0.12), 0 0 8px rgba(217, 119, 6, 0.08);
+}
+
+.cell-lantern-lit:hover:not(.cell-wall) {
+  background: rgba(200, 135, 15, 0.24) !important;
+  border-color: rgba(245, 165, 20, 0.55) !important;
+  box-shadow: inset 0 0 18px rgba(217, 119, 6, 0.22), 0 0 12px rgba(245, 158, 11, 0.18);
+}
+
+.cell-lantern-lit.cell-wall {
+  background: repeating-linear-gradient(
+    45deg,
+    #181406,
+    #181406 8px,
+    #272008 8px,
+    #272008 16px
+  ) !important;
+  border-color: rgba(180, 120, 15, 0.35) !important;
+}
+
+.cell-lantern-lit.cell-puzzle.locked {
+  border-color: #ffaa00 !important;
+  background: rgba(217, 119, 6, 0.18) !important;
+}
+
+.cell-lantern-lit.cell-puzzle.solved {
+  border-color: rgba(0, 255, 102, 0.4) !important;
+  background: rgba(180, 120, 10, 0.12) !important;
+}
+
+.cell-lantern-lit.cell-exit.locked {
+  border-color: rgba(255, 0, 85, 0.4) !important;
+  background: rgba(180, 120, 10, 0.12) !important;
+}
+
+.cell-lantern-lit.cell-exit.unlocked {
+  border-color: rgba(0, 255, 102, 0.6) !important;
+  background: rgba(0, 255, 102, 0.08) !important;
+}
+
 .other-player-indicator {
   width: 70%;
   height: 70%;
@@ -502,8 +546,7 @@ body {
   align-items: center;
   justify-content: center;
   position: relative;
-  transition: all 0.3s ease;
-  animation: scale-in-bounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .other-player-initial {
@@ -584,6 +627,7 @@ body {
 .dot-puzzle-solved { background-color: #00ff66; box-shadow: 0 0 6px #00ff66; }
 .dot-exit-locked { background-color: #ff0055; box-shadow: 0 0 6px #ff0055; }
 .dot-exit-unlocked { background-color: #00ff66; box-shadow: 0 0 10px #00ff66; }
+.dot-lantern-lit { background-color: rgba(217, 140, 15, 0.7); box-shadow: 0 0 6px rgba(217, 140, 15, 0.5); border: 1px solid #d97706; }
 
 /* Console Logger Panel */
 .console-panel {

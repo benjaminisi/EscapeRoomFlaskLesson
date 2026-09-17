@@ -103,7 +103,7 @@ class ItemService:
 
         if item_id in ('item_lantern', 'item_flash'):
             current_level = item.get('activation_level', 0)
-            new_level = 0 if current_level > 0 else 1
+            new_level = 0 if current_level > 0 else 2
             ItemRepo.set_activation_level(item['id'], new_level)
             if new_level > 0:
                 msg = f"{item['name']} activated. Illumination expanded by activation level {new_level} (radius {1 + new_level})."
@@ -118,15 +118,15 @@ class ItemService:
         if item_id == 'item_wd40':
             # Using the WD-40 when the lantern is on creates a fireball that damages the lantern
             lamp_item = ItemRepo.get_by_id('item_lantern') or ItemRepo.get_by_id('item_flash')
-            # if lamp_item and lamp_item['owner_name'] == player_name and lamp_item['activation_level'] > 0:
-            if lamp_item and lamp_item['owner_name'] == player_name:
-                ItemRepo.set_uses(lamp_item['id'], 0)
-                ItemRepo.set_activation_level(lamp_item['id'], 0)
-                return {
-                    'status': 'blocked',
-                    'message': "The WD-40 hits the lantern and creates a fireball - lantern is broken.",
-                    'inventory': ItemService.get_inventory(player_name)
-                }, 200
+            if lamp_item and lamp_item['owner_name'] == player_name and lamp_item['activation_level'] > 0:
+                if lamp_item and lamp_item['owner_name'] == player_name:
+                    ItemRepo.set_uses(lamp_item['id'], 0)
+                    ItemRepo.set_activation_level(lamp_item['id'], 0)
+                    return {
+                        'status': 'blocked',
+                        'message': "The WD-40 hits the lantern and creates a fireball - lantern is broken.",
+                        'inventory': ItemService.get_inventory(player_name)
+                    }, 200
             # Check proximity to exit (4, 4)
             dx = abs(player['x'] - 4)
             dy = abs(player['y'] - 4)
