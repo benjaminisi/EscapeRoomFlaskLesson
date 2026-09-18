@@ -8,6 +8,6 @@ if __name__ == '__main__':
         # Ensure database is initialized with default data if empty
         # We don't force rebuild here to preserve existing data between restarts
         AdminService.init_database(force=False)
-        print("Successfully ensured SQLite database is initialized.")
+        print("Successfully ensured MySQL database is initialized.")
         
     app.run(host='0.0.0.0', port=5001, debug=True)

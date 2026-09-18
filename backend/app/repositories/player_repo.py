@@ -4,7 +4,7 @@ class PlayerRepo:
     @staticmethod
     def get_by_name(name):
         db = get_db()
-        row = db.execute("SELECT * FROM players WHERE name = ?", (name,)).fetchone()
+        row = db.execute("SELECT * FROM players WHERE name = %s", (name,)).fetchone()
         return dict(row) if row else None
 
     @staticmethod
@@ -12,7 +12,7 @@ class PlayerRepo:
         db = get_db()
         cursor = db.cursor()
         cursor.execute(
-            "INSERT INTO players (name, role, color, x, y, steps_taken) VALUES (?, ?, ?, 0, 0, 0)",
+            "INSERT INTO players (name, role, color, x, y, steps_taken) VALUES (%s, %s, %s, 0, 0, 0)",
             (name, role, color)
         )
         db.commit()
@@ -22,7 +22,7 @@ class PlayerRepo:
     def update_position(name, x, y, steps_taken):
         db = get_db()
         db.execute(
-            "UPDATE players SET x = ?, y = ?, steps_taken = ? WHERE name = ?",
+            "UPDATE players SET x = %s, y = %s, steps_taken = %s WHERE name = %s",
             (x, y, steps_taken, name)
         )
         db.commit()
@@ -32,7 +32,7 @@ class PlayerRepo:
     def reset_position(name):
         db = get_db()
         db.execute(
-            "UPDATE players SET x = 0, y = 0, steps_taken = 0 WHERE name = ?",
+            "UPDATE players SET x = 0, y = 0, steps_taken = 0 WHERE name = %s",
             (name,)
         )
         db.commit()

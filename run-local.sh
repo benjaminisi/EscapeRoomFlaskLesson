@@ -9,8 +9,8 @@ set -e
 #
 # Usage:
 #   ./run-local.sh            # Run natively on your machine (recommended for dev)
-#   ./run-local.sh --reset-db # Wipe and re-seed SQLite database, then run
-#   ./run-local.sh --docker   # Run inside monolithic Docker container
+#   ./run-local.sh --reset-db # Wipe and re-seed MySQL database, then run
+#   ./run-local.sh --docker   # Run inside Docker/Podman containers
 # ==============================================================================
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -45,7 +45,7 @@ for arg in "$@"; do
             echo "Usage: ./run-local.sh [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --reset-db    Wipe and re-seed SQLite database to factory state"
+            echo "  --reset-db    Wipe and re-seed MySQL database to factory state"
             echo "  --docker      Run using Docker/Podman container instead of host"
             echo "  --help, -h    Show this help message"
             exit 0
@@ -128,7 +128,7 @@ VENV_PYTHON="${VENV_DIR}/bin/python3"
 VENV_PIP="${VENV_DIR}/bin/pip"
 
 # Ensure pip & dependencies are installed
-if ! "$VENV_PYTHON" -c "import flask, flask_cors" &>/dev/null; then
+if ! "$VENV_PYTHON" -c "import flask, flask_cors, pymysql" &>/dev/null; then
     echo -e "      Installing Python requirements from ${YELLOW}backend/requirements.txt${NC}..."
     "$VENV_PIP" install -r "${BACKEND_DIR}/requirements.txt" --quiet
 else

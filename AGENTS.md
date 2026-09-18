@@ -6,7 +6,7 @@
 
 ## 1. Project Context & Environment
 
-- **Domain**: Cyber Escape Room interactive educational game (Flask backend + React/Vite/TypeScript frontend + SQLite database).
+- **Domain**: Cyber Escape Room interactive educational game (Flask backend + React/Vite/TypeScript frontend + MySQL transactional database).
 - **Deployment Model**: **Classroom Local-Area-Network (LAN) ONLY. NO CLOUD DEPLOYMENT.**
 - **Topology**:
   - **Server**: Single local Linux machine on the classroom network segment.
@@ -15,19 +15,22 @@
 
 ---
 
-## 2. Container Architecture: Monolithic Dev Lab
+## 2. Container Architecture: Dev Lab with MySQL Service
 
-We use **Alternative B: Monolithic Container with Live Bind-Mount & Hot-Reloading**.
+We use a two-service compose architecture: the **Monolithic Dev Lab** (`escaperoom-lab`) paired with a dedicated **MySQL 8.0** service (`escaperoom-mysql`).
 
 - **Image & Compose**:
-  - Defined in `Dockerfile` (Python 3.11 + Node.js 20 LTS).
-  - Orchestrated via `docker-compose.yml` (`container_name: escaperoom-lab`), compatible with both `docker compose` and `podman-compose`.
+  - App container defined in `Dockerfile` (Python 3.11 + Node.js 20 LTS).
+  - Database service defined in `docker-compose.yml` using `mysql:8.0` with InnoDB engine and UTF8MB4 charset.
+  - Orchestrated via `docker-compose.yml` (`escaperoom-lab` and `escaperoom-mysql`), compatible with both `docker compose` and `podman-compose`.
   - Supervisor: `entrypoint.sh` runs both Flask API (port `5001`, debug auto-reload) and Vite dev server (port `3000`, host `0.0.0.0`, watch polling).
 - **Volume Mounts**:
   - Host directory is mounted into `/app` (`.:/app`).
   - Node modules are stored in an anonymous volume (`/app/frontend/node_modules`) to avoid cross-platform binary conflicts between host and Linux container.
+  - Database data is persisted in a named Docker volume (`mysql_data`).
 - **Networking & Routing**:
   - **Vite Proxy**: Port `3000` is exposed to the local network. Vite's dev server proxies all `/api` requests to Flask at `http://localhost:5001`.
+  - **MySQL Teaching Access**: Port `3306` is exposed on the host machine (`3306:3306`) so the teacher can connect directly with SQL clients (Workbench, DBeaver, CLI) for instructional demonstrations.
   - **Single Origin**: Frontend code MUST use relative API paths (`const API_BASE = '/api'`). **Never hardcode `http://localhost:5001`** in frontend code, as this breaks on student client machines.
 
 ---
@@ -44,7 +47,7 @@ Students build features on dedicated git feature branches and push them to GitHu
   - Flask's debug reloader picks up backend changes automatically.
   - `deploy-branch.sh` syncs `pip` and `npm` dependencies inside the active container if needed.
 - **Database Management**:
-  - SQLite database is located at `backend/escaperoom.db`.
+  - Database is managed in MySQL (`escaperoom` database, user `escaperoom`).
   - By default, player progress and puzzle state persist across branch checkouts.
   - Passing `--reset-db` triggers `POST /api/admin/init-db?force=true` to wipe and re-seed the puzzle room cleanly for new student runs.
 
@@ -64,7 +67,7 @@ Whenever making architectural changes, agents **must maintain and keep synchroni
 - **Clarification & Low Confidence Protocol**: Whenever you have doubt or low confidence, or when the user's prompt is incomplete, inconsistent, or unclear, you **MUST ask the user for clarification** before making assumptions or proceeding with ambiguous changes.
 - **Do not split into multi-container setups** unless explicitly instructed by the user (the user chose the monolithic container for simplicity and instant dev hot-reloads).
 - **Never revert `API_BASE`** to an absolute `http://localhost:...` URL.
-- **Maintain backward compatibility** with the SQLite schema and seed endpoints (`schema.sql` and `AdminService.init_database`).
+- **Maintain backward compatibility** with the MySQL schema and seed endpoints (`schema.sql` and `AdminService.init_database`).
 - **Items & Field of Vision Architecture**:
   - The term **"lantern"** (ID: `item_lantern`) replaces "flashlight". Do not use "flashlight" in any app code, database models, or documentation.
   - The `items` table includes an integer column `activation_level` (default `0`).

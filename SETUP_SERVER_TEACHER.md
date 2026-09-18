@@ -126,7 +126,55 @@ podman logs -f escaperoom-lab
 
 ---
 
-## 7. Stopping the Server at End of Class
+## 7. Connecting to MySQL for Teaching & Live Demonstrations
+
+The MySQL database container exposes port `3306` directly to the host machine. You can connect using any desktop database tool (e.g. **MySQL Workbench**, **DBeaver**, **TablePlus**, **VS Code MySQL Extension**) or terminal CLI.
+
+### Connection Parameters:
+| Setting | Value |
+| :--- | :--- |
+| **Host** | `127.0.0.1` (or `localhost`) |
+| **Port** | `3306` |
+| **Database** | `escaperoom` |
+| **Username** | `escaperoom` |
+| **Password** | `escaperoom_pass` |
+| **Root Password** | `root_escaperoom` |
+
+### Quick Terminal CLI Connection:
+```bash
+mysql -h 127.0.0.1 -P 3306 -u escaperoom -pescaperoom_pass escaperoom
+```
+
+### 🎓 Classroom Transaction Demonstration Idea:
+Because the database runs the transactional **InnoDB** engine and the frontend UI polls the server every **2.5 seconds**, you can demonstrate transaction isolation live on the classroom projector:
+
+1. **Step 1 - Inspect live player coordinates**:
+   ```sql
+   SELECT name, x, y, steps_taken FROM players;
+   ```
+2. **Step 2 - Begin a transaction and stage an uncommitted update**:
+   ```sql
+   START TRANSACTION;
+   UPDATE players SET x = 3, y = 3 WHERE name = 'OperativeAlpha';
+   ```
+   *Point out to the class*: Even though the update was executed in SQL, the operative on the student's screen **does not move** because the transaction is not yet committed (isolation / dirty read protection).
+3. **Step 3 - Commit the transaction**:
+   ```sql
+   COMMIT;
+   ```
+   *Watch the screen*: Within **2.5 seconds** (on the next client polling sync), the player's avatar instantly moves to coordinate `(3, 3)` across all connected screens!
+4. **Step 4 - Rollback demonstration**:
+   ```sql
+   START TRANSACTION;
+   UPDATE puzzles SET solved = 1 WHERE id = 'puz_1';
+   -- Show that students still see it locked
+   ROLLBACK;
+   -- The puzzle remains locked
+   ```
+
+---
+
+## 8. Stopping the Server at End of Class
 
 When class is finished:
 ```bash
@@ -136,4 +184,4 @@ docker compose down
 # Podman:
 podman-compose down
 ```
-All player progress is saved in `backend/escaperoom.db` and will be restored next time you run `docker compose up -d` or `podman-compose up -d`.
+All player progress and puzzle state are preserved in the `mysql_data` volume and will automatically restore next time you run `docker compose up -d` or `podman-compose up -d`.
