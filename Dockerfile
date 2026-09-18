@@ -4,13 +4,13 @@ FROM python:3.11-slim-bookworm
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
-# Install core utilities: curl, ca-certificates, gnupg, git, sqlite3, procps
+# Install core utilities: curl, ca-certificates, gnupg, git, default-mysql-client, procps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     gnupg \
     git \
-    sqlite3 \
+    default-mysql-client \
     procps \
     && rm -rf /var/lib/apt/lists/*
 

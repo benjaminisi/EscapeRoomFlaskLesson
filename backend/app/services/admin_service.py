@@ -11,13 +11,15 @@ class AdminService:
         try:
             if force:
                 cursor = db.cursor()
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
-                tables = [row[0] for row in cursor.fetchall()]
+                cursor.execute("""
+                    SELECT table_name FROM information_schema.tables 
+                    WHERE table_schema = DATABASE()
+                """)
+                tables = [row['table_name'] for row in cursor.fetchall()]
+                db.execute("SET FOREIGN_KEY_CHECKS = 0")
                 for table in tables:
-                    db.execute(f"DROP TABLE IF EXISTS {table}")
-                db.execute("DROP TABLE IF EXISTS items")
-                db.execute("DROP TABLE IF EXISTS players")
-                db.execute("DROP TABLE IF EXISTS puzzles")
+                    db.execute(f"DROP TABLE IF EXISTS `{table}`")
+                db.execute("SET FOREIGN_KEY_CHECKS = 1")
                 db.commit()
 
             with open(schema_path, 'r') as f:

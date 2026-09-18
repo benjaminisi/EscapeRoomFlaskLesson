@@ -17,7 +17,7 @@ cd /app/backend
 python run.py &
 FLASK_PID=$!
 
-# Brief pause to let Flask initialize SQLite database
+# Brief pause to let Flask initialize MySQL database and bind ports
 sleep 2
 
 # Start Vite React dev server with proxy to Flask

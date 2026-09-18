@@ -10,13 +10,13 @@ class PuzzleRepo:
     @staticmethod
     def get_by_coords(x, y):
         db = get_db()
-        row = db.execute("SELECT * FROM puzzles WHERE x = ? AND y = ?", (x, y)).fetchone()
+        row = db.execute("SELECT * FROM puzzles WHERE x = %s AND y = %s", (x, y)).fetchone()
         return dict(row) if row else None
 
     @staticmethod
     def get_by_id(puzzle_id):
         db = get_db()
-        row = db.execute("SELECT * FROM puzzles WHERE id = ?", (puzzle_id,)).fetchone()
+        row = db.execute("SELECT * FROM puzzles WHERE id = %s", (puzzle_id,)).fetchone()
         return dict(row) if row else None
 
     @staticmethod
@@ -28,7 +28,7 @@ class PuzzleRepo:
     @staticmethod
     def solve(puzzle_id):
         db = get_db()
-        db.execute("UPDATE puzzles SET solved = 1 WHERE id = ?", (puzzle_id,))
+        db.execute("UPDATE puzzles SET solved = 1 WHERE id = %s", (puzzle_id,))
         db.commit()
         return PuzzleRepo.get_by_id(puzzle_id)
 

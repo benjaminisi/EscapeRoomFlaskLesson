@@ -82,7 +82,7 @@ if $CONTAINER_CLI ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     
     # Optional Database Reset
     if [ "$RESET_DB" = true ]; then
-        echo -e "${YELLOW}[4/4] Resetting SQLite database to clean initial state...${NC}"
+        echo -e "${YELLOW}[4/4] Resetting MySQL database to clean initial state...${NC}"
         $CONTAINER_CLI exec "$CONTAINER_NAME" curl -s -X POST "http://localhost:5001/api/admin/init-db?force=true" > /dev/null
         echo -e "${GREEN}[DATABASE] Database successfully reset and seeded.${NC}"
     else

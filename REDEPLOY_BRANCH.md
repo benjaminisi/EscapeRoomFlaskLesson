@@ -44,7 +44,7 @@ Running:
 ```bash
 ./deploy-branch.sh feature/student-puzzle
 ```
-Keeps all current player accounts, coordinates, and solved puzzle statuses intact in `backend/escaperoom.db`.
+Keeps all current player accounts, coordinates, and solved puzzle statuses intact in the MySQL database.
 
 ### Option B: Reset to a Clean State for a Fresh Round
 If you want a fresh game board (reset all puzzles to unsolved, clear inventory, and clear old player positions):

@@ -9,12 +9,12 @@ This document contains precise instructions for an AI agent (or automation engin
 | Component | Specification |
 | :--- | :--- |
 | **Image Base** | `python:3.11-slim-bookworm` + `Node.js 20.x LTS` (via NodeSource) |
-| **Container Name** | `escaperoom-lab` |
+| **Container Names** | `escaperoom-lab` (Web & API), `escaperoom-mysql` (Database) |
 | **Compose File** | `docker-compose.yml` |
 | **Entrypoint** | `entrypoint.sh` (Supervises Flask & Vite concurrently) |
-| **Exposed Ports** | `3000` (Vite UI + `/api` proxy), `5001` (Direct Flask API) |
-| **Volume Mounts** | `.:/app` (Host repo mount), `/app/frontend/node_modules` (Anonymous volume) |
-| **Database** | SQLite (`/app/backend/escaperoom.db`) |
+| **Exposed Ports** | `3000` (Vite UI + `/api` proxy), `5001` (Direct Flask API), `3306` (MySQL Host Access) |
+| **Volume Mounts** | `.:/app` (Host repo mount), `/app/frontend/node_modules` (Anonymous volume), `mysql_data` (MySQL volume) |
+| **Database** | MySQL 8.0 (`escaperoom` DB, InnoDB, user `escaperoom`, password `escaperoom_pass`) |
 
 ---
 
@@ -106,24 +106,31 @@ Verify that Vite correctly proxies `/api` calls to the Flask backend:
 curl -s http://localhost:3000/api/health | grep '"status":"online"'
 ```
 
-### Test 5: SQLite Database Initialization & Player Registration
+### Test 5: MySQL Database Initialization & Player Registration
 ```bash
 curl -s -X POST http://localhost:3000/api/player \
   -H "Content-Type: application/json" \
   -d '{"name":"AgentTest","role":"Tester","color":"#00ffcc"}'
 ```
 
+### Test 6: Host MySQL Access
+Verify that MySQL port 3306 is reachable from the host machine:
+```bash
+mysql -h 127.0.0.1 -P 3306 -u escaperoom -pescaperoom_pass -e "SHOW TABLES IN escaperoom;"
+```
+
 ---
 
 ## 4. Troubleshooting & Recovery Recipes
 
-### Issue: Port 3000 or 5001 Already in Use
+### Issue: Port 3000, 5001, or 3306 Already in Use
 Check what is holding the port on the host:
 ```bash
 lsof -i :3000
 lsof -i :5001
+lsof -i :3306
 ```
-Kill the conflicting process or change host port mappings in `docker-compose.yml` (e.g. `"8080:3000"`).
+Kill the conflicting process or change host port mappings in `docker-compose.yml` (e.g. `"3307:3306"`).
 
 ### Issue: Node Modules Architecture Mismatch
 If the host has an existing `frontend/node_modules` compiled for macOS (Darwin ARM64) and it leaks into the Linux container:
@@ -142,7 +149,14 @@ podman-compose up -d
 ### Issue: Vite Dev Server HMR Not Detecting File Edits
 Ensure `frontend/vite.config.ts` includes `watch: { usePolling: true }`. On containerized Docker/Podman bind mounts, inotify events from the host OS may not propagate without polling.
 
-### Issue: SQLite Database Lock or Corruption
+### Issue: MySQL Database Health or Reset
+To verify database container health:
+```bash
+docker compose ps
+# or: podman ps
+docker exec escaperoom-mysql mysqladmin ping -u escaperoom -pescaperoom_pass
+```
+
 To force-recreate the database using the built-in admin endpoint:
 ```bash
 # Docker:
