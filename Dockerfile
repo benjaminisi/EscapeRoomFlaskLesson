@@ -32,12 +32,13 @@ COPY frontend/package*.json /app/frontend/
 RUN cd /app/frontend && npm install
 
 # Copy entrypoint supervisor
+COPY entrypoint.sh /app/entrypoint.sh
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /app/entrypoint.sh /entrypoint.sh
 
 # Expose ports:
 # 3000: Vite development server + reverse proxy to /api
 # 5001: Flask REST API (direct backend access)
 EXPOSE 3000 5001
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]

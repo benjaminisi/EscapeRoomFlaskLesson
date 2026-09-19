@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
+# If custom arguments/command are passed (e.g. by IDE or CLI), execute them directly
+if [ "$#" -gt 0 ]; then
+    exec "$@"
+fi
+
 echo "=========================================================="
 echo " CYBER ESCAPE ROOM // MONOLITHIC LAB CONTAINER STARTING"
 echo "=========================================================="

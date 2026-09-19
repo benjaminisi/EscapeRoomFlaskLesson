@@ -267,5 +267,17 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     }, 'Failed to use item');
+  },
+
+  /**
+   * Cheat code: Reposition operative next to door, activate lantern at (2, 2) LVL 3,
+   * bypass all puzzles, equip WD-40, and place Exit Key in bag.
+   */
+  async applyCheat(playerName: string): Promise<{ status: string; message: string; player: PlayerData; inventory: InventoryData }> {
+    return requestJson(`${API_BASE}/player/${encodeURIComponent(playerName)}/cheat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }, 'Failed to execute cheat protocol');
   }
 };
+

@@ -53,9 +53,7 @@ class ItemService:
         if not item or item['owner_name'] != player_name:
             return {'error': 'You do not own this item'}, 400
 
-        if item_id in ('item_lantern', 'item_flash'):
-            ItemRepo.set_activation_level(item_id, 0)
-
+        # Lantern retains its activation_level when put down (stays on if it was on)
         updated_item = ItemRepo.update_location(item_id, 'grid', None, player['x'], player['y'])
         
         return {

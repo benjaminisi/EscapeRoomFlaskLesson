@@ -82,3 +82,32 @@ The exit door at `(4, 4)` enforces three sequential security checks:
    - Press `ArrowDown` or `S` (or click on `(4, 4)`).
 2. The victory screen triggers:
    **"CHAMBER BREACH SUCCESSFUL! Operative escaped in X steps."**
+
+---
+
+## 4. Debug-Aid Cheat Code
+
+For instructors and developers testing the chamber endgame without re-playing all puzzles:
+
+- **Activation Methods**:
+  - **Keyboard**: Type `cheat` or `opendoor` anywhere on the game screen.
+  - **In-Game Button**: Click the `CHEAT_CODE` button in the header bar.
+  - **Admin Panel**: Click `[ADMIN]` in the footer and click `CHEAT` next to any connected operative.
+- **Setup Applied**:
+  - Operative positioned at `(3, 4)` (immediately adjacent to the exit door at `(4, 4)`).
+  - Active **Lantern** deployed on the grid at `(2, 2)` with `activation_level = 3` (illuminating the entire 5x5 chamber).
+  - All 3 firewall puzzles solved.
+  - **WD-40** equipped in **HAND**.
+  - **Exit Key** placed in **STORAGE (BAG)**.
+- **Immediate Next Steps**:
+  1. Click **USE** on WD-40.
+  2. Click **EQUIP** on Exit Key in the Bag.
+  3. Click **USE** on Exit Key.
+  4. Step East into `(4, 4)` (`ArrowRight` or `D`) to trigger escape!
+
+---
+
+## 5. Lantern Persistence Mechanics
+
+When putting down / dropping the lantern, it remains ON if it was turned on (preserving its `activation_level`). The deployed lantern continues illuminating its surrounding grid radius for all operatives on the local network. Operatives stepping onto the lantern's coordinates can pick it back up with its active state preserved.
+

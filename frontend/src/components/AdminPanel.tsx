@@ -45,6 +45,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefresh }) => {
     }
   };
 
+  const handleApplyCheatToPlayer = async (name: string) => {
+    setMessage(null);
+    try {
+      const res = await api.applyCheat(name);
+      setMessage(`Success for ${name}: ${res.message}`);
+      await handleFetchPlayers();
+      onRefresh();
+    } catch (err: any) {
+      setMessage(`Error: ${err.message}`);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
       <div className="bg-gray-900 border border-cyan-500 rounded-lg p-6 max-w-md w-full text-cyan-50">
@@ -88,9 +100,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onRefresh }) => {
               ) : (
                 <ul className="space-y-2">
                   {playersList.map(p => (
-                    <li key={p.id} className="border-b border-gray-800 pb-2 flex justify-between">
-                      <span className="font-bold" style={{ color: p.color }}>{p.name} ({p.role})</span>
-                      <span className="text-gray-500">Pos: ({p.x}, {p.y}) | Steps: {p.steps_taken}</span>
+                    <li key={p.id} className="border-b border-gray-800 pb-2 flex justify-between items-center">
+                      <div>
+                        <span className="font-bold" style={{ color: p.color }}>{p.name} ({p.role})</span>
+                        <span className="text-gray-500 ml-2">Pos: ({p.x}, {p.y})</span>
+                      </div>
+                      <button
+                        onClick={() => handleApplyCheatToPlayer(p.name)}
+                        className="px-2 py-0.5 bg-amber-600/30 text-amber-300 border border-amber-500/50 rounded hover:bg-amber-600/50 text-[10px] font-orbitron cursor-pointer"
+                        title="Apply end-game cheat setup to this operative"
+                      >
+                        CHEAT
+                      </button>
                     </li>
                   ))}
                 </ul>
