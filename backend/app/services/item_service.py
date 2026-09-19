@@ -114,10 +114,21 @@ class ItemService:
             }, 200
 
         if item_id == 'item_wd40':
-            # Using the WD-40 when the lantern is on creates a fireball that damages the lantern
+            # Using the WD-40 near or holding an active lantern creates a fireball that damages the lantern
             lamp_item = ItemRepo.get_by_id('item_lantern') or ItemRepo.get_by_id('item_flash')
-            if lamp_item and lamp_item['owner_name'] == player_name and lamp_item['activation_level'] > 0:
-                if lamp_item and lamp_item['owner_name'] == player_name:
+            if lamp_item and lamp_item.get('activation_level', 0) > 0:
+                is_near = False
+                if lamp_item['owner_name'] == player_name:
+                    is_near = True
+                elif lamp_item['owner_name']:
+                    owner = PlayerRepo.get_by_name(lamp_item['owner_name'])
+                    if owner and max(abs(player['x'] - owner['x']), abs(player['y'] - owner['y'])) <= 1:
+                        is_near = True
+                elif lamp_item['location_type'] == 'grid' and lamp_item['x'] is not None and lamp_item['y'] is not None:
+                    if max(abs(player['x'] - lamp_item['x']), abs(player['y'] - lamp_item['y'])) <= 1:
+                        is_near = True
+
+                if is_near:
                     ItemRepo.set_uses(lamp_item['id'], 0)
                     ItemRepo.set_activation_level(lamp_item['id'], 0)
                     return {

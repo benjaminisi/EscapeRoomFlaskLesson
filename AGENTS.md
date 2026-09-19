@@ -75,4 +75,5 @@ Whenever making architectural changes, agents **must maintain and keep synchroni
   - Base field of vision for a player is restricted to horizontally, vertically, and diagonally adjacent cells (Chebyshev radius 1).
   - An active lantern expands vision radius by its `activation_level` (radius = $1 + \text{activation\_level}$, so radius 2 when activation level is 1).
   - All players on the network see any area illuminated by an active lantern.
+  - **WD-40 Fireball Interaction**: Using WD-40 near or while holding an active lantern (`activation_level > 0`) creates a fireball that destroys the lantern (`uses_left = 0`, `activation_level = 0`) and returns a blocked status. "Near" is evaluated as Chebyshev distance $\le 1$ ($\max(|dx|, |dy|) \le 1$), applying whether the lantern is in the player's possession, dropped on the floor, or held by a nearby operative.
 

@@ -57,3 +57,5 @@ pyvenv.cfg
 *.njsproj
 *.sln
 *.sw?
+.~lock.*#
+.~lock.*

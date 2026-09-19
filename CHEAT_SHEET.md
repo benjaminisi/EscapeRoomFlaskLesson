@@ -69,6 +69,7 @@ The exit door at `(4, 4)` enforces three sequential security checks:
 ### Step 5: Unlock the Exit Door
 1. Move South down the eastern hallway: `(4, 2) -> (4, 3)`. You are now directly North of the exit door at `(4, 4)`.
 2. **Apply WD-40**:
+   - > **Caution (Fireball Hazard)**: If your lantern is active, or if an active lantern is dropped or held by a teammate within 1 grid cell, spraying WD-40 creates a fireball that **destroys the lantern**! Turn off the lantern (or keep at least 2 tiles distance) before using WD-40.
    - In the Inventory panel, ensure **WD-40** is in your **HAND** (if it's in your BAG, click **EQUIP**).
    - Click **USE** on WD-40.
    - Terminal log confirms: *"You sprayed WD-40 on the exit door hinges. The rust dissolved!"*
