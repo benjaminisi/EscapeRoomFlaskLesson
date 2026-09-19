@@ -26,6 +26,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: escaperoom-lab
+    entrypoint: ["/app/entrypoint.sh"]
     depends_on:
       db:
         condition: service_healthy
@@ -40,11 +41,19 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - FLASK_DEBUG=1
+      - ENABLE_INTELLIJ_DEBUG=1
+      - DEBUGGER_HOST=host.docker.internal
+      - DEBUGGER_PORT=5678
+      - LOCAL_PROJECT_ROOT=/Users/david/Projects/EscapeRoom
+      - PATHS_FROM_ECLIPSE_TO_PYTHON=[["/Users/david/Projects/EscapeRoom", "/app"], ["/Users/david/Projects/EscapeRoom/backend", "/app/backend"]]
+      - DEBUG_PYDEVD_PATHS_TRANSLATION=1
       - DB_HOST=db
       - DB_PORT=3306
       - DB_USER=escaperoom
       - DB_PASSWORD=escaperoom_pass
       - DB_NAME=escaperoom
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
 volumes:
