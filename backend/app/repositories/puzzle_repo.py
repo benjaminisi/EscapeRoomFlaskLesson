@@ -33,6 +33,13 @@ class PuzzleRepo:
         return PuzzleRepo.get_by_id(puzzle_id)
 
     @staticmethod
+    def solve_all():
+        db = get_db()
+        db.execute("UPDATE puzzles SET solved = 1")
+        db.commit()
+        return PuzzleRepo.get_all()
+
+    @staticmethod
     def reset_all():
         db = get_db()
         db.execute("UPDATE puzzles SET solved = 0")

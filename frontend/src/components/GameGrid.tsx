@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Avatar } from './AvatarSelector';
 import { PuzzleModal, PuzzleData } from './PuzzleModal';
 import { api, ItemData, InventoryData, PlayerData } from '../services/api';
@@ -66,6 +66,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
   const [gameCompleted, setGameCompleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
+  const cheatBufferRef = useRef<string>('');
 
   const [walls] = useState<Wall[]>([
     { x: 1, y: 0 },
@@ -220,8 +221,34 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
     }
   }, [gameCompleted, activePuzzle, loading, playerName, puzzles, addLog, EXIT_POS.x, EXIT_POS.y, fetchGameState, isPlayerNotFound, onReset]);
 
+  const handleApplyCheat = useCallback(async () => {
+    if (gameCompleted || loading) return;
+    try {
+      const res = await api.applyCheat(playerName);
+      addLog(`⚡ PROTOCOL OVERRIDE: ${res.message}`);
+      await fetchGameState();
+    } catch (err: unknown) {
+      if (isPlayerNotFound(err)) {
+        onReset();
+        return;
+      }
+      const message = (err as Error)?.message || String(err);
+      addLog(`SYS_ERROR: Cheat execution failed: ${message}`);
+    }
+  }, [gameCompleted, loading, playerName, addLog, fetchGameState, isPlayerNotFound, onReset]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Secret cheat code buffer: type 'cheat' or 'opendoor'
+      if (e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        cheatBufferRef.current = (cheatBufferRef.current + e.key.toLowerCase()).slice(-15);
+        if (cheatBufferRef.current.endsWith('cheat') || cheatBufferRef.current.endsWith('opendoor')) {
+          cheatBufferRef.current = '';
+          handleApplyCheat();
+          return;
+        }
+      }
+
       switch (e.key) {
         case 'ArrowUp':
         case 'w':
@@ -254,7 +281,7 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [movePlayer]);
+  }, [movePlayer, handleApplyCheat]);
 
   const handleCellClick = (x: number, y: number) => {
     if (gameCompleted || loading) return;
@@ -426,6 +453,13 @@ export const GameGrid: React.FC<GameGridProps> = ({ playerName, avatar, onReset 
             </button>
           </div>
           <div className="flex items-center gap-2">
+            <button 
+              className="text-xs bg-amber-900/50 hover:bg-amber-800 text-amber-200 border border-amber-500/70 rounded px-2 py-1 transition-colors font-orbitron cursor-pointer" 
+              onClick={handleApplyCheat}
+              title="End-game cheat: teleport to door (3, 4), activate lantern at (2, 2) LVL 3, solve puzzles, equip WD-40, put key in bag (or type 'cheat')"
+            >
+              CHEAT_CODE
+            </button>
             <button 
               className="btn-reset font-orbitron" 
               onClick={handleResetGame}

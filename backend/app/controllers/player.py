@@ -21,3 +21,10 @@ def move_player(player_name):
     
     result, status_code = PlayerService.move_player(player_name, dx, dy)
     return jsonify(result), status_code
+
+@player_bp.route('/<player_name>/cheat', methods=['POST'])
+def apply_cheat(player_name):
+    result, status_code = PlayerService.apply_cheat(player_name)
+    return jsonify(result), status_code
+
+

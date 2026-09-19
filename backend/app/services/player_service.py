@@ -100,3 +100,43 @@ class PlayerService:
             'player': updated_player,
             'message': f'Operative coordinate updated to ({target_x}, {target_y}).'
         }, 200
+
+    @staticmethod
+    def apply_cheat(name):
+        player = PlayerRepo.get_by_name(name)
+        if not player:
+            return {'error': f'Operative {name} not registered'}, 404
+
+        from app.repositories.item_repo import ItemRepo
+
+        # 1. Position player next to the door at (3, 4)
+        updated_player = PlayerRepo.update_position(name, 3, 4, player['steps_taken'])
+
+        # 2. Lantern at grid location (2, 2) and turned on with activation level 3
+        ItemRepo.update_location('item_lantern', 'grid', None, 2, 2)
+        ItemRepo.set_activation_level('item_lantern', 3)
+        ItemRepo.set_uses('item_lantern', -1)
+        if ItemRepo.get_by_id('item_flash'):
+            ItemRepo.update_location('item_flash', 'grid', None, 2, 2)
+            ItemRepo.set_activation_level('item_flash', 3)
+            ItemRepo.set_uses('item_flash', -1)
+
+        # 3. All 3 puzzles solved
+        PuzzleRepo.solve_all()
+
+        # 4. Key in bag
+        ItemRepo.update_location('item_key', 'bag', name, None, None)
+        ItemRepo.set_uses('item_key', 1)
+
+        # 5. WD-40 in hand
+        ItemRepo.update_location('item_wd40', 'hand', name, None, None)
+        ItemRepo.set_uses('item_wd40', 1)
+
+        from app.services.item_service import ItemService
+        return {
+            'status': 'success',
+            'player': updated_player,
+            'inventory': ItemService.get_inventory(name),
+            'message': 'Cheat protocol executed: repositioned next to door at (3, 4), lantern deployed at (2, 2) with activation level 3, all puzzles bypassed, WD-40 equipped in hand, and Exit Key placed in bag.'
+        }, 200
+
